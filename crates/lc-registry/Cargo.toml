@@ -1,0 +1,13 @@
+[package]
+name = "lc-registry"
+description = "Game registries: blocks, items, biomes and tags, loaded from data generated on the user's machine."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true
