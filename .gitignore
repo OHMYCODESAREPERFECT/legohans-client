@@ -1,0 +1,20 @@
+# Build output
+/target/
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs and local runtime data
+*.log
+/run/
+/.cache/
+
+# Never commit game assets or account data
+/assets/
+/generated/
+*.token
+*.secret

@@ -1,0 +1,6 @@
+# Keep line endings identical on every OS (Windows CI would otherwise check out CRLF).
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ogg binary
+*.zip binary
