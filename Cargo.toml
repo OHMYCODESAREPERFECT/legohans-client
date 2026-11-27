@@ -9,6 +9,7 @@ members = [
     "crates/lc-audio",
     "crates/lc-input",
     "crates/lc-ui",
+    "crates/lc-launcher",
     "crates/lc-app",
     "xtask",
 ]
@@ -32,6 +33,7 @@ lc-render = { path = "crates/lc-render" }
 lc-audio = { path = "crates/lc-audio" }
 lc-input = { path = "crates/lc-input" }
 lc-ui = { path = "crates/lc-ui" }
+lc-launcher = { path = "crates/lc-launcher" }
 # Third-party crates are added here, once, when a task actually needs them.
 
 [workspace.lints.rust]

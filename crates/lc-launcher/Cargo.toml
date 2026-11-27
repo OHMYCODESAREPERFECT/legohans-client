@@ -1,0 +1,21 @@
+[package]
+name = "lc-launcher"
+description = "Desktop launcher UI for Legohan's Client."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[dependencies]
+lc-protocol.workspace = true
+lc-net.workspace = true
+eframe = { version = "0.33.3", default-features = false, features = ["glow", "default_fonts", "x11", "wayland"] }
+egui = { version = "0.33.3", default-features = false, features = ["default_fonts"] }
+png = "0.18.1"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+zip = { version = "9.8.2", default-features = false, features = ["deflate"] }
+
+[lints]
+workspace = true

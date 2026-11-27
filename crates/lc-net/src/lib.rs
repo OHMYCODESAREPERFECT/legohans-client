@@ -1,5 +1,7 @@
 //! Networking: TCP connection, compression, encryption and account authentication.
 
+pub mod status;
+
 /// The kind of account a session is started with.
 ///
 /// Both kinds are first-class from the start. Neither weakens server security:

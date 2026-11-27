@@ -1,11 +1,20 @@
 [package]
 name = "lc-app"
-description = "Legohan's Client: application entry point."
+description = "Legohan's Client: application entry points."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 repository.workspace = true
+default-run = "lc-app"
+
+[[bin]]
+name = "lc-app"
+path = "src/main.rs"
+
+[[bin]]
+name = "legohans-client"
+path = "src/bin/legohans-client.rs"
 
 [dependencies]
 lc-protocol.workspace = true
@@ -16,6 +25,7 @@ lc-render.workspace = true
 lc-audio.workspace = true
 lc-input.workspace = true
 lc-ui.workspace = true
+lc-launcher.workspace = true
 
 [lints]
 workspace = true
