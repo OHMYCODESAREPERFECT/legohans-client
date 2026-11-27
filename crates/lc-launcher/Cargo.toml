@@ -21,7 +21,7 @@ zip = { version = "9.8.2", default-features = false, features = ["deflate"] }
 rfd = { version = "0.15", default-features = false }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-rfd = { version = "0.15", default-features = false, features = ["xdg-portal"] }
+rfd = { version = "0.15", default-features = false, features = ["xdg-portal", "tokio"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 rfd = { version = "0.15", default-features = false }
