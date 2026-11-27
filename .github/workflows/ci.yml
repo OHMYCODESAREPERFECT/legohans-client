@@ -1,3 +1,4 @@
+
 name: CI
 
 on:
@@ -23,10 +24,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
-      # Installs the exact toolchain pinned in rust-toolchain.toml.
-      # Needed explicitly: rustup 1.28+ no longer installs it automatically.
+
       - name: Install pinned Rust toolchain
         run: rustup toolchain install
+
       - name: Check formatting
         run: cargo fmt --all --check
 
@@ -37,16 +38,45 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Windows is the primary target and is listed first.
         os: [windows-latest, ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v5
+
       - name: Install pinned Rust toolchain
         run: rustup toolchain install
+
       - uses: Swatinem/rust-cache@v2
+
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
       - name: Tests
         run: cargo test --workspace --locked
+
       - name: Run lc-app
         run: cargo run --locked -p lc-app -- --version
+
+  build-windows:
+    name: Build Windows launcher
+    runs-on: windows-latest
+    needs: [fmt, test]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build launcher
+        run: cargo build --release --locked -p lc-app --bins
+
+      - name: Upload Windows executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: legohans-client-windows
+          path: |
+            target/release/legohans-client.exe
+            target/release/lc-app.exe
+          if-no-files-found: error
