@@ -42,12 +42,8 @@ fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
 impl Theme {
     /// Build the theme for an accent preset.
     pub fn new(accent: Accent, animations: bool) -> Self {
-        let accent_color = match accent {
-            Accent::Violet => Color32::from_rgb(139, 92, 246),
-            Accent::Amethyst => Color32::from_rgb(192, 96, 230),
-            Accent::Indigo => Color32::from_rgb(105, 112, 255),
-            Accent::Orchid => Color32::from_rgb(224, 130, 245),
-        };
+        let [r, g, b] = accent.color();
+        let accent_color = Color32::from_rgb(r, g, b);
         Self {
             accent: accent_color,
             accent_hi: mix(accent_color, Color32::WHITE, 0.35),
@@ -78,6 +74,8 @@ impl Theme {
 
     /// Install visuals and text styles on the egui context.
     pub fn apply(&self, ctx: &Context) {
+        // The launcher owns zoom: keyboard shortcuts must not fight the numeric setting.
+        ctx.options_mut(|o| o.zoom_with_keyboard = false);
         let mut visuals = egui::Visuals::dark();
         visuals.panel_fill = self.bg;
         visuals.window_fill = Color32::from_rgb(20, 14, 34);
@@ -163,8 +161,15 @@ mod tests {
     }
 
     #[test]
-    fn apply_does_not_panic() {
+    fn custom_accent_uses_the_chosen_color() {
+        let theme = Theme::new(Accent::custom([10, 20, 30]), true);
+        assert_eq!(theme.accent, Color32::from_rgb(10, 20, 30));
+    }
+
+    #[test]
+    fn apply_does_not_panic_and_disables_keyboard_zoom() {
         let ctx = Context::default();
         Theme::new(Accent::Orchid, true).apply(&ctx);
+        assert!(!ctx.options(|o| o.zoom_with_keyboard));
     }
 }

@@ -1,11 +1,13 @@
 //! Persisted launcher data.
 
 pub mod account;
+pub mod color;
 pub mod profile;
 pub mod resource_pack;
 pub mod screenshot;
 pub mod server;
 pub mod settings;
+pub mod skin;
 
 use std::path::PathBuf;
 
@@ -45,6 +47,9 @@ pub struct LauncherData {
     pub packs: PackStore,
     warnings: Vec<String>,
     snapshots: Snapshots,
+    settings_loaded: bool,
+    core_loaded: bool,
+    accounts_loaded: bool,
 }
 
 fn save_if_changed<T: Serialize>(
@@ -70,6 +75,7 @@ impl LauncherData {
     pub fn load_settings(dirs: LauncherDirs) -> Self {
         let mut warnings = Vec::new();
         let loaded = load_json::<Settings>(&dirs.settings_file());
+        let settings_loaded = loaded.ok;
         warnings.extend(loaded.warning);
         let mut settings = loaded.value;
         settings.sanitize();
@@ -82,6 +88,9 @@ impl LauncherData {
             packs: PackStore::default(),
             warnings,
             snapshots: Snapshots::default(),
+            settings_loaded,
+            core_loaded: false,
+            accounts_loaded: false,
         }
     }
 
@@ -100,6 +109,10 @@ impl LauncherData {
         self.warnings.extend(k.warning);
         self.packs = k.value;
         self.packs.sync(&self.dirs.resource_packs_dir());
+        // Only treat the stores as loaded when none of them failed with a read error. A missing
+        // or corrupt file is safe (corrupt files are quarantined), but an unreadable one must not
+        // be replaced by empty defaults.
+        self.core_loaded = p.ok && s.ok && k.ok;
     }
 
     /// Load accounts; returns how many were loaded.
@@ -107,6 +120,7 @@ impl LauncherData {
         let a = load_json::<AccountStore>(&self.dirs.accounts_file());
         self.warnings.extend(a.warning);
         self.accounts = a.value;
+        self.accounts_loaded = a.ok;
         self.accounts.accounts.len()
     }
 
@@ -124,37 +138,61 @@ impl LauncherData {
     pub fn save_if_changed(&mut self) -> Vec<String> {
         self.settings.sanitize();
         let mut errors = Vec::new();
-        save_if_changed(
-            self.dirs.settings_file(),
-            &self.settings,
-            &mut self.snapshots.settings,
-            &mut errors,
-        );
-        save_if_changed(
-            self.dirs.profiles_file(),
-            &self.profiles,
-            &mut self.snapshots.profiles,
-            &mut errors,
-        );
-        save_if_changed(
-            self.dirs.accounts_file(),
-            &self.accounts,
-            &mut self.snapshots.accounts,
-            &mut errors,
-        );
-        save_if_changed(
-            self.dirs.servers_file(),
-            &self.servers,
-            &mut self.snapshots.servers,
-            &mut errors,
-        );
-        save_if_changed(
-            self.dirs.packs_file(),
-            &self.packs,
-            &mut self.snapshots.packs,
-            &mut errors,
-        );
+        if self.settings_loaded {
+            save_if_changed(
+                self.dirs.settings_file(),
+                &self.settings,
+                &mut self.snapshots.settings,
+                &mut errors,
+            );
+        }
+        if self.core_loaded {
+            save_if_changed(
+                self.dirs.profiles_file(),
+                &self.profiles,
+                &mut self.snapshots.profiles,
+                &mut errors,
+            );
+            save_if_changed(
+                self.dirs.servers_file(),
+                &self.servers,
+                &mut self.snapshots.servers,
+                &mut errors,
+            );
+            save_if_changed(
+                self.dirs.packs_file(),
+                &self.packs,
+                &mut self.snapshots.packs,
+                &mut errors,
+            );
+        }
+        if self.accounts_loaded {
+            save_if_changed(
+                self.dirs.accounts_file(),
+                &self.accounts,
+                &mut self.snapshots.accounts,
+                &mut errors,
+            );
+        }
         errors
+    }
+
+    /// Whether settings have been loaded and may safely be saved.
+    #[cfg(test)]
+    pub fn settings_loaded(&self) -> bool {
+        self.settings_loaded
+    }
+
+    /// Whether accounts have been loaded and may safely be saved.
+    #[cfg(test)]
+    pub fn accounts_loaded(&self) -> bool {
+        self.accounts_loaded
+    }
+
+    /// Whether profiles, servers and packs have been loaded and may safely be saved.
+    #[cfg(test)]
+    pub fn core_loaded(&self) -> bool {
+        self.core_loaded
     }
 
     /// The selected installation (falls back to the first one).
@@ -285,5 +323,65 @@ mod tests {
         let mut data = LauncherData::load_settings(dirs(&t));
         assert_eq!(data.settings, Settings::default());
         assert_eq!(data.take_warnings().len(), 1);
+    }
+
+    #[test]
+    fn saving_before_loading_accounts_never_overwrites_them() {
+        let t = TempDir::new();
+        std::fs::create_dir_all(t.path().join("launcher")).unwrap();
+        let account_file = t.path().join("launcher").join("accounts.json");
+        let stored = r#"{"accounts":[{"type":"Offline","id":"a","username":"Steve","added":1}]}"#;
+        std::fs::write(&account_file, stored).unwrap();
+
+        let mut data = LauncherData::load_settings(dirs(&t));
+        assert!(!data.accounts_loaded());
+        data.save_if_changed();
+        assert_eq!(std::fs::read_to_string(&account_file).unwrap(), stored);
+
+        assert_eq!(data.load_accounts(), 1);
+        assert!(data.accounts_loaded());
+        data.accounts.remove("a");
+        data.save_if_changed();
+        let reloaded: AccountStore =
+            serde_json::from_str(&std::fs::read_to_string(&account_file).unwrap()).unwrap();
+        assert!(reloaded.accounts.is_empty());
+    }
+
+    #[test]
+    fn saving_before_loading_core_never_overwrites_profiles() {
+        let t = TempDir::new();
+        std::fs::create_dir_all(t.path().join("launcher")).unwrap();
+        let profiles_file = t.path().join("launcher").join("profiles.json");
+        std::fs::write(
+            &profiles_file,
+            r#"{"profiles":[{"id":"p","name":"Kept","version":"1.21.11","icon":"Grass","last_played":null}],"selected":null}"#,
+        )
+        .unwrap();
+        let before = std::fs::read_to_string(&profiles_file).unwrap();
+        let mut data = LauncherData::load_settings(dirs(&t));
+        assert!(!data.core_loaded());
+        data.save_if_changed();
+        assert_eq!(std::fs::read_to_string(&profiles_file).unwrap(), before);
+    }
+
+    #[test]
+    fn unreadable_accounts_are_not_marked_loaded() {
+        let t = TempDir::new();
+        std::fs::create_dir_all(t.path().join("launcher").join("accounts.json")).unwrap();
+        let mut data = LauncherData::load_settings(dirs(&t));
+        data.load_accounts();
+        assert!(!data.accounts_loaded());
+    }
+
+    #[test]
+    fn unreadable_settings_are_not_saved_over() {
+        let t = TempDir::new();
+        let settings = t.path().join("launcher").join("settings.json");
+        std::fs::create_dir_all(&settings).unwrap();
+        let mut data = LauncherData::load_settings(dirs(&t));
+        assert!(!data.settings_loaded());
+        assert_eq!(data.take_warnings().len(), 1);
+        data.save_if_changed();
+        assert!(settings.is_dir());
     }
 }

@@ -109,17 +109,12 @@ impl LauncherApp {
             self.theme.apply(ctx);
             self.theme_key = key;
         }
-        let live = ctx.zoom_factor();
-        if (s.ui_scale - self.zoom_applied).abs() > 1e-3 {
-            ctx.set_zoom_factor(s.ui_scale);
-            self.zoom_applied = s.ui_scale;
-        } else if (live - self.zoom_applied).abs() > 1e-3 {
-            // The user zoomed with the keyboard: keep the setting in sync.
-            s.ui_scale = live.clamp(*UI_SCALE_RANGE.start(), *UI_SCALE_RANGE.end());
-            self.zoom_applied = s.ui_scale;
-            if (live - s.ui_scale).abs() > 1e-3 {
-                ctx.set_zoom_factor(s.ui_scale);
-            }
+        let target = s
+            .ui_scale
+            .clamp(*UI_SCALE_RANGE.start(), *UI_SCALE_RANGE.end());
+        if (target - self.zoom_applied).abs() > 1e-3 {
+            ctx.set_zoom_factor(target);
+            self.zoom_applied = target;
         }
     }
 

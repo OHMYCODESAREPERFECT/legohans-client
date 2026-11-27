@@ -20,8 +20,9 @@ const PANORAMA_KEY: &str = "home-panorama";
 /// Home page state.
 #[derive(Default)]
 pub struct State {
-    resolved_for: Option<(HomeBackground, String)>,
+    resolved_for: Option<(HomeBackground, String, u64)>,
     jar: Option<PathBuf>,
+    custom_dir: Option<PathBuf>,
 }
 
 fn locate_jar(c: &Ctx<'_>) -> Option<PathBuf> {
@@ -44,11 +45,16 @@ pub fn show(ui: &mut egui::Ui, c: &mut Ctx<'_>) {
     let key = (
         c.state.data.settings.home_background,
         c.state.data.settings.minecraft_dir.clone(),
+        c.state.data.settings.custom_panorama_rev,
     );
     if c.ui.home.resolved_for.as_ref() != Some(&key) {
         c.ui.home.jar = match key.0 {
             HomeBackground::Auto => locate_jar(c),
-            HomeBackground::Generated => None,
+            HomeBackground::Generated | HomeBackground::Custom => None,
+        };
+        c.ui.home.custom_dir = match key.0 {
+            HomeBackground::Custom => Some(c.state.data.dirs.custom_panorama_dir()),
+            _ => None,
         };
         c.textures.evict(PANORAMA_KEY);
         c.ui.home.resolved_for = Some(key);
@@ -56,6 +62,9 @@ pub fn show(ui: &mut egui::Ui, c: &mut Ctx<'_>) {
     if let Some(jar) = c.ui.home.jar.clone() {
         c.textures
             .request(PANORAMA_KEY, ImageSource::Panorama(jar), 512);
+    } else if let Some(dir) = c.ui.home.custom_dir.clone() {
+        c.textures
+            .request(PANORAMA_KEY, ImageSource::CustomPanorama(dir), 512);
     }
 
     let time = if c.theme.animations { c.now } else { 0.0 };

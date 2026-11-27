@@ -3,7 +3,7 @@ name: CI
 
 on:
   push:
-    branches: [main, task-002-launcher]
+    branches: [main, task-002-launcher, task-003-customization]
   pull_request:
 
 permissions:

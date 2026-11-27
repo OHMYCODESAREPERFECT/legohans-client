@@ -7,6 +7,7 @@ rust-version.workspace = true
 publish.workspace = true
 repository.workspace = true
 default-run = "lc-app"
+build = "build.rs"
 
 [[bin]]
 name = "lc-app"
@@ -26,6 +27,10 @@ lc-audio.workspace = true
 lc-input.workspace = true
 lc-ui.workspace = true
 lc-launcher.workspace = true
+
+[target.'cfg(windows)'.build-dependencies]
+png = "0.18.1"
+winres = "0.1.12"
 
 [lints]
 workspace = true

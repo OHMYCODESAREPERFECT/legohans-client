@@ -216,4 +216,24 @@ mod tests {
         let back: AccountStore = serde_json::from_str(&json).unwrap();
         assert_eq!(s, back);
     }
+
+    #[test]
+    fn microsoft_records_store_no_credentials() {
+        let account = AccountRecord::Microsoft {
+            id: "b".into(),
+            username: "Alex".into(),
+            added: 0,
+        };
+        let json = serde_json::to_value(&account).unwrap();
+        let mut fields: Vec<&String> = json.as_object().unwrap().keys().collect();
+        fields.sort();
+        assert_eq!(fields, ["added", "id", "type", "username"]);
+        let text = json.to_string().to_lowercase();
+        for forbidden in ["token", "secret", "password", "refresh"] {
+            assert!(
+                !text.contains(forbidden),
+                "JSON must not contain {forbidden}"
+            );
+        }
+    }
 }

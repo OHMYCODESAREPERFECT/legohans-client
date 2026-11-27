@@ -144,6 +144,24 @@ pub fn open_folder_program() -> &'static str {
     }
 }
 
+/// Ask the user for a PNG file using the platform's native file dialog. Returns `None` when
+/// the dialog is cancelled. Keyboard shortcuts and drag-and-drop remain available in the UI.
+pub fn pick_png(title: &str) -> Option<std::path::PathBuf> {
+    rfd::FileDialog::new()
+        .set_title(title)
+        .add_filter("PNG image", &["png"])
+        .pick_file()
+}
+
+/// Ask the user for four PNG files at once, for the custom panorama.
+pub fn pick_pngs(title: &str) -> Vec<std::path::PathBuf> {
+    rfd::FileDialog::new()
+        .set_title(title)
+        .add_filter("PNG image", &["png"])
+        .pick_files()
+        .unwrap_or_default()
+}
+
 /// Open `path` in the system file manager, creating it first if needed.
 pub fn open_folder(path: &Path) -> io::Result<()> {
     std::fs::create_dir_all(path)?;

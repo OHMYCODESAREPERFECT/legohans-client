@@ -25,6 +25,8 @@ pub enum Page {
     Servers,
     /// Accounts.
     Accounts,
+    /// Skin, cape and elytra editor.
+    SkinEditor,
     /// Settings.
     Settings,
     /// Screenshots.
@@ -33,13 +35,14 @@ pub enum Page {
 
 impl Page {
     /// All pages in sidebar order.
-    pub const ALL: [Page; 8] = [
+    pub const ALL: [Page; 9] = [
         Self::Home,
         Self::Play,
         Self::Installations,
         Self::ResourcePacks,
         Self::Servers,
         Self::Accounts,
+        Self::SkinEditor,
         Self::Settings,
         Self::Screenshots,
     ];
@@ -53,6 +56,7 @@ impl Page {
             Self::ResourcePacks => "Resource Packs",
             Self::Servers => "Servers",
             Self::Accounts => "Accounts",
+            Self::SkinEditor => "Skin Editor",
             Self::Settings => "Settings",
             Self::Screenshots => "Screenshots",
         }
@@ -64,11 +68,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn eight_pages_with_unique_titles() {
-        assert_eq!(Page::ALL.len(), 8);
+    fn all_pages_have_unique_titles() {
+        assert_eq!(Page::ALL.len(), 9);
         let mut titles: Vec<_> = Page::ALL.iter().map(|p| p.title()).collect();
         titles.sort();
         titles.dedup();
-        assert_eq!(titles.len(), 8);
+        assert_eq!(titles.len(), 9);
     }
 }

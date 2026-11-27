@@ -65,6 +65,26 @@ impl LauncherDirs {
     pub fn screenshots_dir(&self) -> PathBuf {
         self.root.join("screenshots")
     }
+    /// Folder holding imported customization assets.
+    pub fn custom_dir(&self) -> PathBuf {
+        self.root.join("custom")
+    }
+    /// Imported skin texture.
+    pub fn skin_file(&self) -> PathBuf {
+        self.custom_dir().join("skin.png")
+    }
+    /// Imported cape texture.
+    pub fn cape_file(&self) -> PathBuf {
+        self.custom_dir().join("cape.png")
+    }
+    /// Imported elytra texture.
+    pub fn elytra_file(&self) -> PathBuf {
+        self.custom_dir().join("elytra.png")
+    }
+    /// Folder holding the four custom panorama faces.
+    pub fn custom_panorama_dir(&self) -> PathBuf {
+        self.custom_dir().join("panorama")
+    }
 }
 
 /// Compute the data root for `os` (as in `std::env::consts::OS`) using `get` to read variables.

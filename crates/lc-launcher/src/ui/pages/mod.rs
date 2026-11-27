@@ -8,6 +8,7 @@ pub mod resource_packs;
 pub mod screenshots;
 pub mod servers;
 pub mod settings;
+pub mod skin_editor;
 
 use egui::{Context, Id, RichText, Ui};
 
@@ -36,6 +37,8 @@ pub struct UiState {
     pub servers: servers::State,
     /// Accounts page state.
     pub accounts: accounts::State,
+    /// Skin editor page state.
+    pub skin_editor: skin_editor::State,
     /// Settings page state.
     pub settings: settings::State,
     /// Screenshots page state.
@@ -71,6 +74,7 @@ pub fn show(page: Page, ui: &mut Ui, c: &mut Ctx<'_>) {
         Page::ResourcePacks => resource_packs::show(ui, c),
         Page::Servers => servers::show(ui, c),
         Page::Accounts => accounts::show(ui, c),
+        Page::SkinEditor => skin_editor::show(ui, c),
         Page::Settings => settings::show(ui, c),
         Page::Screenshots => screenshots::show(ui, c),
     }

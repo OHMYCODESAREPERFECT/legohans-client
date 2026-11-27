@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Accent color preset.
+/// Accent color preset or a custom color.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum Accent {
     /// Vivid violet (default).
@@ -14,6 +14,8 @@ pub enum Accent {
     Indigo,
     /// Soft orchid.
     Orchid,
+    /// An arbitrary RGB color chosen with the color wheel.
+    Custom([u8; 3]),
 }
 
 impl Accent {
@@ -27,6 +29,54 @@ impl Accent {
             Self::Amethyst => "Amethyst",
             Self::Indigo => "Indigo",
             Self::Orchid => "Orchid",
+            Self::Custom(_) => "Custom",
+        }
+    }
+
+    /// The RGB color of this accent.
+    pub fn color(self) -> [u8; 3] {
+        match self {
+            Self::Violet => [139, 92, 246],
+            Self::Amethyst => [192, 96, 230],
+            Self::Indigo => [105, 112, 255],
+            Self::Orchid => [224, 130, 245],
+            Self::Custom(rgb) => rgb,
+        }
+    }
+
+    /// A custom accent from an RGB color.
+    pub fn custom(rgb: [u8; 3]) -> Self {
+        Self::Custom(rgb)
+    }
+}
+
+/// Player model used by the skin editor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum SkinModel {
+    /// Four-pixel-wide arms (Steve).
+    #[default]
+    Classic,
+    /// Three-pixel-wide arms (Alex).
+    Slim,
+}
+
+impl SkinModel {
+    /// All models in display order.
+    pub const ALL: [SkinModel; 2] = [Self::Classic, Self::Slim];
+
+    /// Display name.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Classic => "Classic (4 px arms)",
+            Self::Slim => "Slim (3 px arms)",
+        }
+    }
+
+    /// Arm width in skin pixels.
+    pub fn arm_width(self) -> f32 {
+        match self {
+            Self::Classic => 4.0,
+            Self::Slim => 3.0,
         }
     }
 }
@@ -65,17 +115,20 @@ pub enum HomeBackground {
     Auto,
     /// Always use the generated landscape.
     Generated,
+    /// Use the four images imported on the Settings page.
+    Custom,
 }
 
 impl HomeBackground {
     /// All choices in display order.
-    pub const ALL: [HomeBackground; 2] = [Self::Auto, Self::Generated];
+    pub const ALL: [HomeBackground; 3] = [Self::Auto, Self::Generated, Self::Custom];
 
     /// Display name.
     pub fn name(self) -> &'static str {
         match self {
             Self::Auto => "Minecraft panorama if available",
             Self::Generated => "Always generated landscape",
+            Self::Custom => "My four-image panorama",
         }
     }
 }
@@ -84,7 +137,7 @@ impl HomeBackground {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
-    /// Accent color preset.
+    /// Accent color preset or custom color.
     pub accent: Accent,
     /// UI zoom factor.
     pub ui_scale: f32,
@@ -106,6 +159,10 @@ pub struct Settings {
     pub selected_profile: Option<String>,
     /// Selected account id.
     pub selected_account: Option<String>,
+    /// Player model used by the skin editor.
+    pub skin_model: SkinModel,
+    /// Incremented whenever the custom panorama changes, so cached textures reload.
+    pub custom_panorama_rev: u64,
 }
 
 impl Default for Settings {
@@ -122,12 +179,29 @@ impl Default for Settings {
             minecraft_dir: String::new(),
             selected_profile: None,
             selected_account: None,
+            skin_model: SkinModel::default(),
+            custom_panorama_rev: 0,
         }
     }
 }
 
 /// Smallest and largest allowed UI scale.
-pub const UI_SCALE_RANGE: std::ops::RangeInclusive<f32> = 0.75..=1.5;
+pub const UI_SCALE_RANGE: std::ops::RangeInclusive<f32> = 0.5..=2.0;
+
+/// Parse a percentage typed by the user (`50`, `125%`, `200`) into a scale factor.
+pub fn parse_ui_scale(input: &str) -> Result<f32, String> {
+    let text = input.trim().trim_end_matches('%').trim();
+    if text.is_empty() {
+        return Err("Enter a percentage between 50% and 200%.".to_string());
+    }
+    let percent: f32 = text.parse().map_err(|_| {
+        "That is not a number. Enter a percentage between 50% and 200%.".to_string()
+    })?;
+    if !percent.is_finite() || !(50.0..=200.0).contains(&percent) {
+        return Err("Enter a percentage between 50% and 200%.".to_string());
+    }
+    Ok(percent / 100.0)
+}
 
 impl Settings {
     /// Clamp out-of-range values (for example from a hand-edited file).
@@ -230,15 +304,17 @@ pub const SETTINGS: &[SettingMeta] = &[
         id: SettingId::Accent,
         category: Category::Appearance,
         title: "Accent color",
-        description: "Highlight color used for buttons, glow and selection.",
-        keywords: &["theme", "colour", "purple", "violet"],
+        description: "Highlight color used for buttons, glow and selection. Pick a preset or any custom color.",
+        keywords: &[
+            "theme", "colour", "color", "purple", "violet", "wheel", "custom",
+        ],
     },
     SettingMeta {
         id: SettingId::UiScale,
         category: Category::Appearance,
         title: "Interface scale",
-        description: "Make the whole launcher larger or smaller.",
-        keywords: &["zoom", "size", "dpi", "text"],
+        description: "Type a percentage from 50% to 200% and press Enter. Applies when you leave the field.",
+        keywords: &["zoom", "size", "dpi", "text", "percent", "percentage"],
     },
     SettingMeta {
         id: SettingId::Animations,
@@ -258,8 +334,15 @@ pub const SETTINGS: &[SettingMeta] = &[
         id: SettingId::HomeBackground,
         category: Category::Appearance,
         title: "Home artwork",
-        description: "Use your own Minecraft panorama when found, or the generated landscape.",
-        keywords: &["background", "panorama", "wallpaper", "landscape"],
+        description: "Use a Minecraft panorama, the generated landscape, or import your own four images.",
+        keywords: &[
+            "background",
+            "panorama",
+            "wallpaper",
+            "landscape",
+            "custom",
+            "images",
+        ],
     },
     SettingMeta {
         id: SettingId::ShowSplash,
@@ -357,10 +440,47 @@ mod tests {
             ..Settings::default()
         };
         s.sanitize();
-        assert_eq!(s.ui_scale, 1.5);
+        assert_eq!(s.ui_scale, 2.0);
+        s.ui_scale = 0.1;
+        s.sanitize();
+        assert_eq!(s.ui_scale, 0.5);
         s.ui_scale = f32::NAN;
         s.sanitize();
         assert_eq!(s.ui_scale, 1.0);
+    }
+
+    #[test]
+    fn ui_scale_text_is_validated() {
+        assert_eq!(parse_ui_scale("100"), Ok(1.0));
+        assert_eq!(parse_ui_scale(" 125% "), Ok(1.25));
+        assert_eq!(parse_ui_scale("50"), Ok(0.5));
+        assert_eq!(parse_ui_scale("200%"), Ok(2.0));
+        assert!(parse_ui_scale("49").is_err());
+        assert!(parse_ui_scale("201").is_err());
+        assert!(parse_ui_scale("abc").is_err());
+        assert!(parse_ui_scale("").is_err());
+        assert!(parse_ui_scale("NaN").is_err());
+    }
+
+    #[test]
+    fn custom_accent_roundtrips_and_reports_its_color() {
+        let accent = Accent::custom([12, 200, 99]);
+        assert_eq!(accent.name(), "Custom");
+        assert_eq!(accent.color(), [12, 200, 99]);
+        let json = serde_json::to_string(&accent).unwrap();
+        let back: Accent = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, accent);
+    }
+
+    #[test]
+    fn custom_home_background_roundtrips() {
+        let s = Settings {
+            home_background: HomeBackground::Custom,
+            ..Settings::default()
+        };
+        let json = serde_json::to_string(&s).unwrap();
+        let back: Settings = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.home_background, HomeBackground::Custom);
     }
 
     #[test]

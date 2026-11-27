@@ -121,6 +121,31 @@ pub fn paint_nav_icon(painter: &Painter, center: Pos2, size: f32, page: Page, co
                 .collect();
             painter.add(Shape::line(arc, stroke));
         }
+        Page::SkinEditor => {
+            painter.circle_stroke(Pos2::new(center.x, center.y - 0.45 * u), 0.38 * u, stroke);
+            painter.add(Shape::line(
+                pts(
+                    center,
+                    u,
+                    &[
+                        (-0.75, 1.0),
+                        (-0.65, 0.25),
+                        (-0.2, 0.0),
+                        (0.2, 0.0),
+                        (0.65, 0.25),
+                        (0.75, 1.0),
+                    ],
+                ),
+                stroke,
+            ));
+            painter.line_segment(
+                [
+                    Pos2::new(center.x + 0.5 * u, center.y + 0.5 * u),
+                    Pos2::new(center.x + 1.0 * u, center.y),
+                ],
+                stroke,
+            );
+        }
         Page::Settings => {
             painter.circle_stroke(center, 0.3 * u, stroke);
             painter.circle_stroke(center, 0.62 * u, stroke);

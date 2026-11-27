@@ -31,6 +31,17 @@ impl DecodedImage {
     }
 }
 
+/// Read the pixel dimensions of a PNG without decoding its pixels.
+pub fn png_dimensions(bytes: &[u8]) -> Result<(u32, u32), String> {
+    let decoder = png::Decoder::new(Cursor::new(bytes));
+    let reader = decoder.read_info().map_err(|e| format!("PNG error: {e}"))?;
+    let info = reader.info();
+    if info.width == 0 || info.height == 0 {
+        return Err("the image has no pixels".to_string());
+    }
+    Ok((info.width, info.height))
+}
+
 /// Decode PNG bytes to RGBA8, shrinking so the longest side is at most `max_dim`.
 pub fn decode_png(bytes: &[u8], max_dim: u32) -> Result<DecodedImage, String> {
     let mut decoder = png::Decoder::new(Cursor::new(bytes));
@@ -129,6 +140,8 @@ pub enum ImageSource {
     PngFile(PathBuf),
     /// The stitched vanilla panorama inside a Minecraft client jar.
     Panorama(PathBuf),
+    /// Four imported images stitched into a panorama.
+    CustomPanorama(PathBuf),
 }
 
 struct Job {
@@ -150,6 +163,7 @@ fn run_job(job: &Job) -> Result<DecodedImage, String> {
             decode_png(&bytes, job.max_dim)
         }
         ImageSource::Panorama(jar) => panorama::load_panorama(jar, job.max_dim),
+        ImageSource::CustomPanorama(dir) => panorama::load_custom_panorama(dir, job.max_dim),
     }
 }
 
@@ -214,15 +228,20 @@ impl TextureCache {
 
     /// Decode PNG `bytes` right now (for small images such as icons) and cache the texture.
     pub fn load_bytes(&mut self, key: &str, bytes: &[u8], max_dim: u32) {
+        self.load_bytes_with(key, bytes, max_dim, TextureOptions::LINEAR);
+    }
+
+    /// Like [`Self::load_bytes`] but keeps hard pixel edges, for Minecraft textures.
+    pub fn load_bytes_nearest(&mut self, key: &str, bytes: &[u8], max_dim: u32) {
+        self.load_bytes_with(key, bytes, max_dim, TextureOptions::NEAREST);
+    }
+
+    fn load_bytes_with(&mut self, key: &str, bytes: &[u8], max_dim: u32, options: TextureOptions) {
         if self.entries.contains_key(key) {
             return;
         }
         let entry = match decode_png(bytes, max_dim) {
-            Ok(img) => Entry::Ready(self.ctx.load_texture(
-                key,
-                img.into_color_image(),
-                TextureOptions::LINEAR,
-            )),
+            Ok(img) => Entry::Ready(self.ctx.load_texture(key, img.into_color_image(), options)),
             Err(_) => Entry::Failed,
         };
         self.entries.insert(key.to_string(), entry);
