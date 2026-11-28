@@ -1011,14 +1011,16 @@ fn mirror_uvs_x(uvs: BoxUv) -> BoxUv {
 }
 
 fn elytra_uv() -> BoxUv {
-    // A 12x22x4 wing uses an 8-pixel main panel plus 2-pixel edge strips, laid out for a 64x32
-    // cape sheet starting at (22, 0).
+    // Java Edition maps the 12x22x4 wing box with setCapeUVs(22, 0, 10, 20, 2): a 10x20 panel,
+    // 2-pixel edge strips, and a mirrored 10x20 back panel on the 64x32 cape sheet. Importing a
+    // real elytra PNG must keep this exact atlas; the UVs must never be nudged to match a test
+    // texture.
     BoxUv {
-        top: uv(24.0, 0.0, 32.0, 2.0),
-        bottom: uv(32.0, 0.0, 42.0, 2.0),
-        front: uv(24.0, 2.0, 32.0, 22.0),
-        back: uv(34.0, 2.0, 44.0, 22.0),
-        right: uv(32.0, 2.0, 34.0, 22.0),
+        top: uv(24.0, 0.0, 34.0, 2.0),
+        bottom: uv(34.0, 0.0, 44.0, 2.0),
+        front: uv(24.0, 2.0, 34.0, 22.0),
+        back: uv(36.0, 2.0, 46.0, 22.0),
+        right: uv(34.0, 2.0, 36.0, 22.0),
         left: uv(22.0, 2.0, 24.0, 22.0),
     }
 }
@@ -1065,6 +1067,32 @@ fn solid_png() -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::images::decode_png;
+    use crate::test_support::{TempDir, encode_png};
+    use std::fs;
+
+    fn asymmetric_elytra_png() -> Vec<u8> {
+        let mut rgba = [[45u8, 35, 60, 255]; 64 * 32];
+        let mut fill = |x: usize, y: usize, w: usize, h: usize, c: [u8; 4]| {
+            for yy in y..y + h {
+                for xx in x..x + w {
+                    rgba[yy * 64 + xx] = c;
+                }
+            }
+        };
+        fill(22, 2, 2, 20, [60, 110, 230, 255]);
+        fill(24, 2, 5, 20, [230, 60, 60, 255]);
+        fill(29, 2, 5, 20, [240, 210, 60, 255]);
+        fill(34, 2, 2, 20, [60, 220, 220, 255]);
+        fill(36, 2, 5, 20, [190, 80, 220, 255]);
+        fill(41, 2, 5, 20, [60, 210, 90, 255]);
+        fill(24, 0, 5, 2, [230, 60, 60, 255]);
+        fill(29, 0, 5, 2, [240, 210, 60, 255]);
+        fill(34, 0, 5, 2, [60, 210, 90, 255]);
+        fill(39, 0, 5, 2, [60, 110, 230, 255]);
+        let flat: Vec<u8> = rgba.into_iter().flatten().collect();
+        encode_png(64, 32, &flat)
+    }
 
     #[test]
     fn standard_head_uvs_match_the_skin_template() {
@@ -1230,16 +1258,69 @@ mod tests {
         assert_eq!(wings[0].transform.roll, -wings[1].transform.roll);
         assert_eq!(wings[0].transform.yaw, -wings[1].transform.yaw);
         assert_eq!(wings[0].transform.pitch, wings[1].transform.pitch);
-        assert_eq!((wings[0].uv.top.x0, wings[0].uv.top.x1), (24.0, 32.0));
-        assert_eq!((wings[0].uv.bottom.x0, wings[0].uv.bottom.x1), (32.0, 42.0));
-        assert_eq!((wings[0].uv.front.x0, wings[0].uv.front.x1), (24.0, 32.0));
-        assert_eq!((wings[0].uv.back.x0, wings[0].uv.back.x1), (34.0, 44.0));
-        assert_eq!((wings[0].uv.right.x0, wings[0].uv.right.x1), (32.0, 34.0));
+        assert_eq!((wings[0].uv.top.x0, wings[0].uv.top.x1), (24.0, 34.0));
+        assert_eq!((wings[0].uv.bottom.x0, wings[0].uv.bottom.x1), (34.0, 44.0));
+        assert_eq!((wings[0].uv.front.x0, wings[0].uv.front.x1), (24.0, 34.0));
+        assert_eq!((wings[0].uv.back.x0, wings[0].uv.back.x1), (36.0, 46.0));
+        assert_eq!((wings[0].uv.right.x0, wings[0].uv.right.x1), (34.0, 36.0));
         assert_eq!((wings[0].uv.left.x0, wings[0].uv.left.x1), (22.0, 24.0));
-        assert_eq!((wings[1].uv.front.x0, wings[1].uv.front.x1), (32.0, 24.0));
+        assert_eq!((wings[1].uv.front.x0, wings[1].uv.front.x1), (34.0, 24.0));
+        assert_eq!((wings[1].uv.back.x0, wings[1].uv.back.x1), (46.0, 36.0));
         assert!(wings.iter().all(|w| w.uv.back.y1 <= 32.0));
         let hinge = wings[0].transform.apply(V3::new(5.0, 24.0, -2.0));
         assert_eq!(hinge, V3::new(5.0, 24.0, -2.0));
+    }
+
+    #[test]
+    fn imported_elytra_png_uses_the_vanilla_atlas_and_mirrors_the_second_wing() {
+        let dir = TempDir::new();
+        let source = dir.path().join("uploaded-elytra.png");
+        let destination = dir.path().join("custom").join("elytra.png");
+        fs::write(&source, asymmetric_elytra_png()).unwrap();
+
+        let info = skin::import_texture(&source, &destination, TextureKind::Elytra).unwrap();
+        assert_eq!((info.width, info.height), (64, 32));
+        let bytes = fs::read(&destination).unwrap();
+        assert_eq!(
+            bytes,
+            fs::read(&source).unwrap(),
+            "import must not resize or recolor pixels"
+        );
+        let decoded = decode_png(&bytes, 64).unwrap();
+        assert_eq!((decoded.width, decoded.height), (64, 32));
+
+        let sample = |region: Uv, fu: f32, fv: f32| -> [u8; 4] {
+            let p = pos2(
+                (region.x0 + (region.x1 - region.x0) * fu) / 64.0,
+                (region.y0 + (region.y1 - region.y0) * fv) / 32.0,
+            );
+            let x = (p.x * decoded.width as f32) as usize;
+            let y = (p.y * decoded.height as f32) as usize;
+            let i = (y * decoded.width + x) * 4;
+            [
+                decoded.rgba[i],
+                decoded.rgba[i + 1],
+                decoded.rgba[i + 2],
+                decoded.rgba[i + 3],
+            ]
+        };
+
+        let wings = elytra_boxes();
+        let first = wings[0].uv;
+        assert_eq!(sample(first.front, 0.25, 0.5), [230, 60, 60, 255]);
+        assert_eq!(sample(first.front, 0.75, 0.5), [240, 210, 60, 255]);
+        assert_eq!(sample(first.back, 0.25, 0.5), [190, 80, 220, 255]);
+        assert_eq!(sample(first.back, 0.75, 0.5), [60, 210, 90, 255]);
+        assert_eq!(sample(first.left, 0.5, 0.5), [60, 110, 230, 255]);
+        assert_eq!(sample(first.right, 0.5, 0.5), [60, 220, 220, 255]);
+        assert_eq!(sample(first.top, 0.25, 0.5), [230, 60, 60, 255]);
+        assert_eq!(sample(first.bottom, 0.25, 0.5), [60, 210, 90, 255]);
+
+        let mirrored = wings[1].uv;
+        assert_eq!(sample(mirrored.front, 0.25, 0.5), [240, 210, 60, 255]);
+        assert_eq!(sample(mirrored.back, 0.25, 0.5), [60, 210, 90, 255]);
+        assert_eq!(sample(mirrored.left, 0.5, 0.5), [60, 220, 220, 255]);
+        assert_eq!(sample(mirrored.right, 0.5, 0.5), [60, 110, 230, 255]);
     }
 
     #[test]
