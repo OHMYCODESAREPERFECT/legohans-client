@@ -2,7 +2,7 @@
 
 An independent implementation of the Minecraft: Java Edition **1.21.11** client, written entirely in Rust.
 
-> **Status: Task 003 (customization).** The launcher window and its customization tools work. The game itself does not exist yet, so nothing can be played.
+> **Status: Task 004 (in-game UI preview).** The launcher window, customization tools and visual-only in-game menu preview work. The native game itself does not exist yet, so nothing is played inside the preview.
 
 ## What works today and what does not
 
@@ -22,7 +22,7 @@ An independent implementation of the Minecraft: Java Edition **1.21.11** client,
 | Window and executable icon | Working: a black "LC" cube; embedded into Windows executables where supported |
 | Update check | Placeholder: no update channel exists, and the splash says so |
 | Microsoft sign-in | Not implemented. The button is disabled and no tokens are stored |
-| Launching the game | Not possible: the Rust client is not implemented. Play explains this instead of pretending |
+| Launching the game | Not possible in the preview: Play opens Legohan's Client launcher instead of starting a world or connecting to a server. The native Rust game is still unimplemented |
 
 When a game backend implements `GameBackend` and reports `Ready`, Play launches it immediately with no extra steps.
 
@@ -85,6 +85,7 @@ The toolchain is pinned in `rust-toolchain.toml` (Rust 1.91.0). With [rustup](ht
 
 ```
 cargo run -p lc-app                 # opens the launcher
+cargo run -p lc-app -- --ingame-ui main-menu  # opens the visual-only menu preview
 cargo run -p lc-app -- --version
 cargo test --workspace
 cargo fmt --all --check
@@ -94,6 +95,8 @@ cargo clippy --workspace --all-targets -- -D warnings
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every push and pull request: formatting, clippy (warnings are errors), tests and a release build on Windows, Linux and macOS. Push triggers include `main`, `task-002-launcher` and `task-003-customization`. The Windows job uploads `legohans-client.exe` and `lc-app.exe` as a downloadable artifact.
+
+`.github/workflows/client.yml` covers the Task 004 in-game client on `main` and `task-004-ingame-ui`. It runs formatting, clippy, the full workspace test suite (including the headless menu render smoke tests) and a locked Windows release build, then uploads both executables as `legohans-client-with-ingame-ui-windows`.
 
 ## License
 

@@ -1,0 +1,52 @@
+name: Client CI
+
+on:
+  push:
+    branches: [main, task-004-ingame-ui]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+concurrency:
+  group: client-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  client:
+    name: In-game client checks and Windows build
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Tests
+        run: cargo test --workspace --locked
+
+      - name: Build launcher and in-game client
+        run: cargo build --release --locked -p lc-app --bins
+
+      - name: Upload Windows client artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: legohans-client-with-ingame-ui-windows
+          path: |
+            target/release/legohans-client.exe
+            target/release/lc-app.exe
+          if-no-files-found: error

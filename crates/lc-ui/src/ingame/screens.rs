@@ -36,6 +36,7 @@ pub fn show(
         Screen::Accessibility => accessibility(ui, rect, state, visuals, panorama),
         Screen::Pause => pause(ui, rect, state, visuals),
     }
+    launcher_notice(ui.painter(), rect, state, visuals);
     transition(ui.painter(), rect, state);
 }
 
@@ -66,6 +67,19 @@ fn transition(painter: &Painter, rect: Rect, state: &MenuState) {
         egui::CornerRadius::ZERO,
         Color32::from_black_alpha(alpha),
     );
+}
+
+fn launcher_notice(painter: &Painter, rect: Rect, state: &MenuState, visuals: &Visuals) {
+    let Some(message) = state.launcher_message.as_deref() else {
+        return;
+    };
+    let notice = Rect::from_center_size(
+        pos2(rect.center().x, rect.max.y - visuals.px(30.0)),
+        vec2(rect.width() * 0.9, visuals.px(16.0)),
+    );
+    visuals
+        .font
+        .draw_centered(painter, notice, message, visuals.scale, GOLD, true);
 }
 
 fn centered(rect: Rect, width: f32, height: f32, y_offset: f32) -> Rect {
@@ -447,7 +461,7 @@ fn singleplayer(
     let create = Rect::from_min_size(pos2(left, by + bh + gap), vec2(bw, bh));
     let back = Rect::from_min_size(pos2(left, by + (bh + gap) * 2.0), vec2(bw, bh));
     if widgets::button(ui, play, "Play Selected World", visuals, true).clicked() {
-        state.go(Screen::Pause);
+        state.open_launcher();
     }
     if widgets::button(ui, create, "Create New World", visuals, true).clicked() {
         state.go(Screen::CreateWorld);
@@ -601,7 +615,7 @@ fn multiplayer(
     )
     .clicked()
     {
-        state.go(Screen::Pause);
+        state.open_launcher();
     }
     if widgets::button(
         ui,

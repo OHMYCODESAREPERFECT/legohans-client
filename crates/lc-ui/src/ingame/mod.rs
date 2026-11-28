@@ -6,6 +6,7 @@
 
 pub mod assets;
 pub mod font;
+pub mod launch;
 pub mod panorama;
 pub mod screens;
 pub mod state;
