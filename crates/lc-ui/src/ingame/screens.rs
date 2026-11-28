@@ -5,8 +5,7 @@ use egui::{Color32, Image, Painter, Pos2, Rect, Sense, Ui, pos2, vec2};
 use super::{
     panorama::Panorama,
     state::{
-        LANGUAGES, LOADING_DURATION, LanguageEntry, MenuState, SERVERS, Screen, ServerEntry,
-        WORLDS, WorldEntry,
+        LANGUAGES, LanguageEntry, MenuState, SERVERS, Screen, ServerEntry, WORLDS, WorldEntry,
     },
     widgets::{self, Visuals},
 };
@@ -422,95 +421,10 @@ fn draw_bottom_icons(painter: &Painter, left: Rect, right: Rect, visuals: &Visua
 }
 
 fn loading(painter: &Painter, rect: Rect, state: &MenuState, visuals: &Visuals) {
-    painter.rect_filled(
-        rect,
-        egui::CornerRadius::ZERO,
-        Color32::from_rgb(16, 16, 18),
-    );
-    let t = state.time;
-    let center = rect.center();
-    draw_pixel_loading_art(painter, center, t, visuals);
-
-    let logo_size = visuals.px(160.0);
-    let logo_rect = Rect::from_center_size(
-        pos2(center.x, center.y - visuals.px(48.0)),
-        vec2(logo_size, logo_size),
-    );
-    draw_image(painter, &visuals.textures.mojang, logo_rect);
-
-    let bar_w = visuals.px(220.0);
-    let bar_h = visuals.px(14.0);
-    let bar = Rect::from_center_size(
-        pos2(center.x, center.y + visuals.px(78.0)),
-        vec2(bar_w, bar_h),
-    );
-    painter.rect_filled(bar, egui::CornerRadius::ZERO, Color32::from_rgb(32, 32, 36));
-    let progress = (t / LOADING_DURATION).clamp(0.0, 1.0).max(0.04);
-    let fill_w = bar.width() * progress;
-    let gradient_steps = 10;
-    for i in 0..gradient_steps {
-        let x0 = bar.min.x + fill_w * i as f32 / gradient_steps as f32;
-        let x1 = bar.min.x + fill_w * (i + 1) as f32 / gradient_steps as f32;
-        let shade = 150 + (i * 8).min(90);
-        painter.rect_filled(
-            Rect::from_min_max(pos2(x0, bar.min.y), pos2(x1, bar.max.y)),
-            egui::CornerRadius::ZERO,
-            Color32::from_rgb(shade, shade, shade),
-        );
-    }
-    painter.rect_stroke(
-        bar,
-        egui::CornerRadius::ZERO,
-        (1.0, Color32::from_gray(90)),
-        egui::StrokeKind::Outside,
-    );
-
-    let splash = [
-        "Preparing the world...",
-        "Loading visual menus...",
-        "Placing blocks...",
-    ];
-    let index = (t as usize / 2) % splash.len();
-    visuals.font.draw_centered(
-        painter,
-        Rect::from_center_size(
-            pos2(center.x, bar.max.y + visuals.px(22.0)),
-            vec2(bar_w, visuals.px(12.0)),
-        ),
-        splash[index],
-        visuals.scale,
-        DIM,
-        true,
-    );
-    visuals.font.draw_centered(
-        painter,
-        Rect::from_center_size(
-            pos2(center.x, center.y + visuals.px(118.0)),
-            vec2(bar_w, visuals.px(12.0)),
-        ),
-        "MOJANG STUDIOS",
-        visuals.scale,
-        GOLD,
-        true,
-    );
-}
-
-fn draw_pixel_loading_art(painter: &Painter, center: Pos2, time: f32, visuals: &Visuals) {
-    let unit = visuals.px(16.0);
-    for y in -5..5 {
-        for x in -9..9 {
-            let phase = (x * 7 + y * 11) as f32 * 0.37;
-            let alpha = (((time * 0.8 + phase).sin() + 1.0) * 22.0) as u8;
-            painter.rect_filled(
-                Rect::from_min_size(
-                    pos2(center.x + x as f32 * unit, center.y + (y + 8) as f32 * unit),
-                    vec2(unit - 1.0, unit - 1.0),
-                ),
-                egui::CornerRadius::ZERO,
-                Color32::from_rgba_premultiplied(60, 70, 90, alpha),
-            );
-        }
-    }
+    let _ = state;
+    // The supplied splash texture already contains the red background, Mojang Studios lockup and
+    // progress bar exactly as they should appear.
+    draw_image(painter, &visuals.textures.loading, rect);
 }
 
 fn list_screen_frame(
@@ -1130,7 +1044,157 @@ fn create_world(
     visuals: &Visuals,
     panorama: &mut Panorama,
 ) {
-    world_editor_scaffold(ui, rect, state, visuals, panorama, false);
+    backdrop(
+        ui.painter(),
+        rect,
+        visuals,
+        panorama,
+        state.yaw(),
+        state.pitch(),
+    );
+    ui.painter().rect_filled(
+        rect,
+        egui::CornerRadius::ZERO,
+        Color32::from_black_alpha(90),
+    );
+
+    // Game / World / More tabs.
+    let tab_y = rect.min.y + rect.height() * 0.004;
+    let tab_h = rect.height() * 0.086;
+    let tabs = [
+        ("Game", rect.width() * 0.069, rect.width() * 0.283, true),
+        ("World", rect.width() * 0.356, rect.width() * 0.293, false),
+        ("More", rect.width() * 0.652, rect.width() * 0.282, false),
+    ];
+    for (label, x, w, selected) in tabs {
+        let tab = Rect::from_min_size(pos2(rect.min.x + x, tab_y), vec2(w, tab_h));
+        ui.painter()
+            .rect_filled(tab, egui::CornerRadius::ZERO, Color32::from_gray(12));
+        ui.painter().rect_stroke(
+            tab,
+            egui::CornerRadius::ZERO,
+            (1.0, Color32::from_gray(110)),
+            egui::StrokeKind::Inside,
+        );
+        visuals
+            .font
+            .draw_centered(ui.painter(), tab, label, visuals.scale + 1, TEXT, true);
+        if selected {
+            let underline = Rect::from_center_size(
+                pos2(tab.center().x, tab.max.y - visuals.px(1.0)),
+                vec2(visuals.px(40.0), visuals.px(1.0)),
+            );
+            ui.painter()
+                .rect_filled(underline, egui::CornerRadius::ZERO, Color32::WHITE);
+        }
+    }
+
+    let field_x = rect.min.x + rect.width() * 0.257;
+    let field_w = rect.width() * 0.487;
+    let label_y = rect.min.y + rect.height() * 0.143;
+    visuals.font.draw(
+        ui.painter(),
+        pos2(field_x, label_y),
+        "World Name",
+        visuals.scale + 1,
+        TEXT,
+        true,
+    );
+
+    let field_rect = Rect::from_min_size(
+        pos2(field_x, rect.min.y + rect.height() * 0.197),
+        vec2(field_w, rect.height() * 0.082),
+    );
+    widgets::text_field(ui, field_rect, &state.world_name, visuals);
+
+    let button_y = rect.min.y + rect.height() * 0.313;
+    let button_h = rect.height() * 0.078;
+    let button_step = rect.height() * 0.117;
+    let modes = ["Survival", "Creative", "Adventure", "Spectator"];
+    let mode = format!(
+        "Game Mode: {}",
+        modes[state.settings.world_type as usize % 4]
+    );
+    if widgets::button(
+        ui,
+        Rect::from_min_size(pos2(field_x, button_y), vec2(field_w, button_h)),
+        &mode,
+        visuals,
+        true,
+    )
+    .clicked()
+    {
+        state.settings.world_type = (state.settings.world_type + 1) % 4;
+    }
+    let difficulty = ["Peaceful", "Easy", "Normal", "Hard"][state.settings.difficulty as usize % 4];
+    if widgets::button(
+        ui,
+        Rect::from_min_size(
+            pos2(field_x, button_y + button_step),
+            vec2(field_w, button_h),
+        ),
+        &format!("Difficulty: {difficulty}"),
+        visuals,
+        true,
+    )
+    .clicked()
+    {
+        state.settings.difficulty = (state.settings.difficulty + 1) % 4;
+    }
+    let commands = if state.settings.allow_cheats {
+        "ON"
+    } else {
+        "OFF"
+    };
+    if widgets::button(
+        ui,
+        Rect::from_min_size(
+            pos2(field_x, button_y + button_step * 2.0),
+            vec2(field_w, button_h),
+        ),
+        &format!("Allow Commands: {commands}"),
+        visuals,
+        true,
+    )
+    .clicked()
+    {
+        state.settings.allow_cheats = !state.settings.allow_cheats;
+    }
+
+    let sep_y = rect.min.y + rect.height() * 0.857;
+    ui.painter().rect_filled(
+        Rect::from_min_size(pos2(rect.min.x, sep_y), vec2(rect.width(), visuals.px(1.0))),
+        egui::CornerRadius::ZERO,
+        Color32::from_gray(55),
+    );
+
+    let bottom_y = rect.min.y + rect.height() * 0.889;
+    let bottom_w = rect.width() * 0.352;
+    let bottom_h = rect.height() * 0.080;
+    let create_x = rect.min.x + rect.width() * 0.14;
+    let cancel_x = rect.min.x + rect.width() * 0.51;
+    if widgets::button(
+        ui,
+        Rect::from_min_size(pos2(create_x, bottom_y), vec2(bottom_w, bottom_h)),
+        "Create New World",
+        visuals,
+        true,
+    )
+    .clicked()
+    {
+        state.go(Screen::Pause);
+    }
+    if widgets::button(
+        ui,
+        Rect::from_min_size(pos2(cancel_x, bottom_y), vec2(bottom_w, bottom_h)),
+        "Cancel",
+        visuals,
+        true,
+    )
+    .clicked()
+    {
+        state.back();
+    }
 }
 
 fn world_settings(

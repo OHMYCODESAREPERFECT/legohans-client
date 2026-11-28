@@ -143,6 +143,8 @@ pub static EDITION: &[u8] = include_bytes!("../../assets/ingame/title/edition.pn
 pub static REALMS: &[u8] = include_bytes!("../../assets/ingame/title/realms.png");
 /// Mojang Studios logo used by the loading screen.
 pub static MOJANG: &[u8] = include_bytes!("../../assets/ingame/title/mojangstudios.png");
+/// Full Mojang Studios splash reference used by the loading screen.
+pub static LOADING: &[u8] = include_bytes!("../../assets/ingame/title/loading.png");
 /// Minecraft bitmap font atlas.
 pub static FONT: &[u8] = include_bytes!("../../assets/ingame/font/ascii.png");
 
@@ -242,6 +244,8 @@ pub struct Textures {
     pub realms: TextureHandle,
     /// Mojang Studios logo.
     pub mojang: TextureHandle,
+    /// Full Mojang Studios splash.
+    pub loading: TextureHandle,
     /// Panorama vignette.
     pub overlay: TextureHandle,
     /// Bitmap font atlas.
@@ -316,6 +320,7 @@ impl Textures {
             edition: handle(ctx, "ingame/edition", EDITION, 512),
             realms: handle(ctx, "ingame/realms", REALMS, 512),
             mojang: handle(ctx, "ingame/mojang", MOJANG, 512),
+            loading: handle(ctx, "ingame/loading", LOADING, 720),
             overlay: handle(ctx, "ingame/overlay", PANORAMA_OVERLAY, 512),
             font: handle(ctx, "ingame/font", FONT, 128),
             menu: handle(ctx, "ingame/menu", MENU_BACKGROUND, 16),
