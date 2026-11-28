@@ -5,7 +5,11 @@ use egui::{
     pos2, vec2,
 };
 
-use super::{assets::Textures, font::BitmapFont, splash::SplashText};
+use super::{
+    assets::Textures,
+    font::BitmapFont,
+    splash::{SplashText, WordmarkText},
+};
 
 /// Shared visual context for every menu screen.
 #[derive(Clone)]
@@ -18,6 +22,8 @@ pub struct Visuals {
     pub textures: Textures,
     /// Random yellow splash phrase for this launch.
     pub splash: SplashText,
+    /// Heavy outlined RUST EDITION wordmark.
+    pub edition: WordmarkText,
 }
 
 impl Visuals {
@@ -26,11 +32,13 @@ impl Visuals {
         let textures = Textures::load(ctx);
         let font = BitmapFont::new(ctx, textures.font.clone());
         let splash = SplashText::new(ctx, &font, splash_phrase, 6);
+        let edition = WordmarkText::new(ctx, &font, "RUST EDITION", 5, 1.3);
         Self {
             scale: 2,
             font,
             textures,
             splash,
+            edition,
         }
     }
 

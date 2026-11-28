@@ -169,18 +169,17 @@ fn main_menu(
     let logo_rect = centered(rect, logo_w, logo_h, logo_center_y - rect.min.y);
     draw_image(ui.painter(), &visuals.textures.logo, logo_rect);
 
-    let edition_y = logo_rect.max.y + visuals.px(5.0);
-    visuals.font.draw_centered(
-        ui.painter(),
-        Rect::from_center_size(
-            pos2(rect.center().x, edition_y),
-            vec2(logo_w, visuals.px(18.0)),
+    let edition_y = logo_rect.max.y + visuals.px(9.0);
+    let edition_scale = (rect.width() / 1280.0).clamp(0.45, 1.0);
+    let edition_rect = Rect::from_center_size(
+        pos2(rect.center().x, edition_y),
+        vec2(
+            visuals.edition.width * edition_scale,
+            visuals.edition.height * edition_scale,
         ),
-        "RUST EDITION",
-        visuals.scale + 3,
-        Color32::from_rgb(232, 232, 224),
-        true,
     );
+    let edition_image = Image::new(&visuals.edition.texture).fit_to_exact_size(edition_rect.size());
+    ui.put(edition_rect, edition_image);
 
     // Yellow bouncing phrase, rotated over the right side of the logo.
     let splash_center = pos2(
