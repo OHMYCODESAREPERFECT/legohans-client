@@ -287,18 +287,55 @@ impl eframe::App for LauncherApp {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::NativeClientBackend;
+    use crate::backend::{
+        BackendStatus, GameBackend, LaunchFailure, LaunchRequest, VisualClientBackend,
+        VisualClientCommand,
+    };
     use crate::model::LauncherData;
     use crate::paths::LauncherDirs;
     use crate::test_support::{TempDir, encode_png};
 
-    fn make_app(dir: &TempDir, splash: bool) -> (Context, LauncherApp) {
+    /// A backend that never opens a window, so page-rendering tests stay headless.
+    fn recording_backend() -> VisualClientBackend {
+        VisualClientBackend::with_command_and_spawn(
+            || {
+                Ok(VisualClientCommand {
+                    executable: "client.exe".into(),
+                    args: vec!["--ingame-ui".into(), "loading".into()],
+                })
+            },
+            |_| Ok(()),
+        )
+    }
+
+    /// A backend that reports the game is unavailable, for the warning-path test.
+    struct UnavailableBackend;
+
+    impl GameBackend for UnavailableBackend {
+        fn status(&self) -> BackendStatus {
+            BackendStatus::Unavailable("not yet".into())
+        }
+
+        fn launch(&mut self, _request: &LaunchRequest) -> Result<(), LaunchFailure> {
+            Err(LaunchFailure("not yet".into()))
+        }
+    }
+
+    fn make_app_with_backend(
+        dir: &TempDir,
+        splash: bool,
+        backend: Box<dyn GameBackend>,
+    ) -> (Context, LauncherApp) {
         let mut data = LauncherData::load_settings(LauncherDirs::from_root(dir.path()));
         data.settings.show_splash = splash;
-        let state = LauncherState::new(data, Box::new(NativeClientBackend));
+        let state = LauncherState::new(data, backend);
         let ctx = Context::default();
         let app = LauncherApp::new(&ctx, state);
         (ctx, app)
+    }
+
+    fn make_app(dir: &TempDir, splash: bool) -> (Context, LauncherApp) {
+        make_app_with_backend(dir, splash, Box::new(recording_backend()))
     }
 
     fn frame(ctx: &Context, app: &mut LauncherApp, time: f64, size: (f32, f32)) {
@@ -409,9 +446,9 @@ mod tests {
     }
 
     #[test]
-    fn pressing_play_without_backend_warns_and_launches_nothing() {
+    fn pressing_play_with_unavailable_backend_warns_and_launches_nothing() {
         let dir = TempDir::new();
-        let (ctx, mut app) = make_app(&dir, false);
+        let (ctx, mut app) = make_app_with_backend(&dir, false, Box::new(UnavailableBackend));
         frame(&ctx, &mut app, 1.0, (1000.0, 700.0));
         seed_data(&mut app, &dir);
         app.press_play(&ctx);
@@ -424,6 +461,25 @@ mod tests {
                 .unwrap()
                 .last_played
                 .is_none()
+        );
+    }
+
+    #[test]
+    fn pressing_play_starts_the_visual_game_client() {
+        let dir = TempDir::new();
+        let (ctx, mut app) = make_app(&dir, false);
+        frame(&ctx, &mut app, 1.0, (1000.0, 700.0));
+        seed_data(&mut app, &dir);
+        app.press_play(&ctx);
+        assert_eq!(app.toasts.len(), 1);
+        assert!(app.state.last_launch.as_ref().unwrap().success);
+        assert!(
+            app.state
+                .data
+                .selected_profile()
+                .unwrap()
+                .last_played
+                .is_some()
         );
     }
 

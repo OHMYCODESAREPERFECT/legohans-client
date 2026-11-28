@@ -6,14 +6,13 @@
 
 pub mod assets;
 pub mod font;
-pub mod launch;
 pub mod panorama;
 pub mod screens;
 pub mod state;
 pub mod widgets;
 
 use egui::{CornerRadius, ViewportBuilder};
-use state::Screen;
+use state::{LOADING_DURATION, Screen};
 
 use self::{
     panorama::Panorama,
@@ -56,6 +55,9 @@ impl eframe::App for IngameApp {
         let dt = self.last_time.map_or(0.0, |last| (now - last) as f32);
         self.last_time = Some(now);
         self.state.tick(dt);
+        if self.state.screen == Screen::Loading && self.state.time >= LOADING_DURATION {
+            self.state.go(Screen::MainMenu);
+        }
         if ctx.input(|input| input.key_pressed(egui::Key::Escape)) {
             self.state.back();
         }
@@ -97,13 +99,13 @@ pub fn run(screen: Screen) -> Result<(), String> {
     let height = env_f32("LC_INGAME_HEIGHT", 720.0);
     let options = eframe::NativeOptions {
         viewport: ViewportBuilder::default()
-            .with_title("Legohan's Client - In-Game UI Preview")
+            .with_title("Legohan's Client - Game Client")
             .with_inner_size([width, height])
             .with_min_inner_size([480.0, 320.0]),
         ..Default::default()
     };
     eframe::run_native(
-        "Legohan's Client - In-Game UI Preview",
+        "Legohan's Client - Game Client",
         options,
         Box::new(move |cc| Ok(Box::new(IngameApp::new(&cc.egui_ctx, screen)))),
     )
@@ -147,6 +149,7 @@ mod tests {
         ] {
             for screen in Screen::ALL {
                 app.state.screen = screen;
+                app.state.time = 0.0;
                 app.state.transition = 0.0;
                 for _ in 0..3 {
                     time += 0.1;
@@ -155,5 +158,20 @@ mod tests {
                 assert_eq!(app.state.screen, screen);
             }
         }
+    }
+
+    #[test]
+    fn loading_screen_transitions_to_main_menu() {
+        let ctx = egui::Context::default();
+        let mut app = IngameApp::new(&ctx, Screen::Loading);
+        frame(&ctx, &mut app, 0.0, (1280.0, 720.0));
+        assert_eq!(app.state.screen, Screen::Loading);
+        frame(
+            &ctx,
+            &mut app,
+            LOADING_DURATION as f64 + 0.1,
+            (1280.0, 720.0),
+        );
+        assert_eq!(app.state.screen, Screen::MainMenu);
     }
 }

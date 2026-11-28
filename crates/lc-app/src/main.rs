@@ -2,8 +2,8 @@
 //!
 //! With no arguments this opens the launcher window. `--version` and `--help` print text and
 //! exit, which makes this binary usable from scripts and CI. `--ingame-ui [screen]` opens the
-//! separate visual-only in-game menu preview. The `legohans-client` binary opens the launcher
-//! without a console window on Windows.
+//! visual-only game-client window. The `legohans-client` binary opens the launcher without a
+//! console window on Windows.
 
 use std::process::ExitCode;
 
@@ -40,7 +40,7 @@ fn parse_args(args: &[String]) -> Result<Action, String> {
             lc_net::GAME_VERSION
         ))),
         Some("--help" | "-h") => Ok(Action::Print(format!(
-            "{NAME} {VERSION}\n\nUSAGE:\n    lc-app [--version | --help | --ingame-ui [screen]]\n\nWith no arguments the launcher window opens.\n--ingame-ui opens the visual-only menu preview. Available screens: {}.\nThe game client itself is not implemented yet, so the launcher cannot start a game.",
+            "{NAME} {VERSION}\n\nUSAGE:\n    lc-app [--version | --help | --ingame-ui [screen]]\n\nWith no arguments the launcher window opens.\n--ingame-ui opens the visual-only game-client window. Available screens: {}.\nPressing Play in the launcher opens the game-client window; native gameplay is not implemented yet.",
             screen_names()
         ))),
         Some("--ingame-ui") => {
@@ -86,7 +86,7 @@ fn main() -> ExitCode {
         Ok(Action::RunIngameUi(screen)) => match lc_ui::ingame::run(screen) {
             Ok(()) => ExitCode::SUCCESS,
             Err(message) => {
-                eprintln!("The in-game UI preview could not start: {message}");
+                eprintln!("The game client could not start: {message}");
                 ExitCode::FAILURE
             }
         },

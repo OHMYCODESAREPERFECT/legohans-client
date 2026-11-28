@@ -5,7 +5,8 @@ use egui::{Color32, Painter, Pos2, Rect, Sense, Ui, pos2, vec2};
 use super::{
     panorama::Panorama,
     state::{
-        LANGUAGES, LanguageEntry, MenuState, SERVERS, Screen, ServerEntry, WORLDS, WorldEntry,
+        LANGUAGES, LOADING_DURATION, LanguageEntry, MenuState, SERVERS, Screen, ServerEntry,
+        WORLDS, WorldEntry,
     },
     widgets::{self, Visuals},
 };
@@ -36,7 +37,6 @@ pub fn show(
         Screen::Accessibility => accessibility(ui, rect, state, visuals, panorama),
         Screen::Pause => pause(ui, rect, state, visuals),
     }
-    launcher_notice(ui.painter(), rect, state, visuals);
     transition(ui.painter(), rect, state);
 }
 
@@ -67,19 +67,6 @@ fn transition(painter: &Painter, rect: Rect, state: &MenuState) {
         egui::CornerRadius::ZERO,
         Color32::from_black_alpha(alpha),
     );
-}
-
-fn launcher_notice(painter: &Painter, rect: Rect, state: &MenuState, visuals: &Visuals) {
-    let Some(message) = state.launcher_message.as_deref() else {
-        return;
-    };
-    let notice = Rect::from_center_size(
-        pos2(rect.center().x, rect.max.y - visuals.px(30.0)),
-        vec2(rect.width() * 0.9, visuals.px(16.0)),
-    );
-    visuals
-        .font
-        .draw_centered(painter, notice, message, visuals.scale, GOLD, true);
 }
 
 fn centered(rect: Rect, width: f32, height: f32, y_offset: f32) -> Rect {
@@ -245,7 +232,7 @@ fn loading(painter: &Painter, rect: Rect, state: &MenuState, visuals: &Visuals) 
         vec2(bar_w, bar_h),
     );
     painter.rect_filled(bar, egui::CornerRadius::ZERO, Color32::from_rgb(32, 32, 36));
-    let progress = ((t * 0.16) % 1.0).max(0.04);
+    let progress = (t / LOADING_DURATION).clamp(0.0, 1.0).max(0.04);
     let fill_w = bar.width() * progress;
     let gradient_steps = 10;
     for i in 0..gradient_steps {
@@ -460,9 +447,8 @@ fn singleplayer(
     let play = Rect::from_min_size(pos2(left, by), vec2(bw, bh));
     let create = Rect::from_min_size(pos2(left, by + bh + gap), vec2(bw, bh));
     let back = Rect::from_min_size(pos2(left, by + (bh + gap) * 2.0), vec2(bw, bh));
-    if widgets::button(ui, play, "Play Selected World", visuals, true).clicked() {
-        state.open_launcher();
-    }
+    // Visual-only: world loading is intentionally not implemented.
+    widgets::button(ui, play, "Play Selected World", visuals, true);
     if widgets::button(ui, create, "Create New World", visuals, true).clicked() {
         state.go(Screen::CreateWorld);
     }
@@ -606,17 +592,14 @@ fn multiplayer(
     let gap = visuals.px(4.0);
     let by = buttons_rect.max.y - (bh * 3.0 + gap * 2.0);
     let left = buttons_rect.min.x + visuals.px(2.0);
-    if widgets::button(
+    // Visual-only: server connections are intentionally not implemented.
+    widgets::button(
         ui,
         Rect::from_min_size(pos2(left, by), vec2(bw, bh)),
         "Play Selected Server",
         visuals,
         true,
-    )
-    .clicked()
-    {
-        state.open_launcher();
-    }
+    );
     if widgets::button(
         ui,
         Rect::from_min_size(pos2(left, by + bh + gap), vec2(bw, bh)),

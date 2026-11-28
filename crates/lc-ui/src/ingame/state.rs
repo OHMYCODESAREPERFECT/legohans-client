@@ -1,5 +1,8 @@
 //! Visual-only menu state, navigation stack and placeholder data.
 
+/// Seconds the Mojang-style splash is shown before the main menu appears.
+pub const LOADING_DURATION: f32 = 3.2;
+
 /// Every screen in the in-game UI preview.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Screen {
@@ -303,8 +306,6 @@ pub struct MenuState {
     pub yaw_override: Option<f32>,
     /// Optional fixed panorama pitch for deterministic captures.
     pub pitch_override: Option<f32>,
-    /// Feedback shown after a Play button opens the launcher.
-    pub launcher_message: Option<String>,
 }
 
 impl MenuState {
@@ -323,7 +324,6 @@ impl MenuState {
             settings: VisualSettings::default(),
             yaw_override: None,
             pitch_override: None,
-            launcher_message: None,
         }
     }
 
@@ -362,14 +362,6 @@ impl MenuState {
     pub fn back(&mut self) {
         self.screen = self.stack.pop().unwrap_or(Screen::MainMenu);
         self.transition = 0.0;
-    }
-
-    /// Open the launcher from a visual-only Play button and record the result for display.
-    pub fn open_launcher(&mut self) {
-        self.launcher_message = Some(match crate::ingame::launch::open_launcher() {
-            Ok(()) => "Legohan's Client launcher opened.".to_string(),
-            Err(err) => format!("Could not open launcher: {err}"),
-        });
     }
 
     /// Return directly to the main menu, discarding the navigation history.

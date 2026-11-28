@@ -1,8 +1,9 @@
 //! Desktop launcher for Legohan's Client.
 //!
 //! The launcher manages installations, accounts, servers, resource packs and screenshots and
-//! starts the game through the [`backend::GameBackend`] boundary. The Rust game client does not
-//! exist yet, so launching is reported as unavailable rather than faked.
+//! starts the game through the [`backend::GameBackend`] boundary. Play opens the visual-only
+//! game-client window implemented by `lc_ui::ingame`; the native world/rendering client is still
+//! not implemented.
 
 mod app;
 mod backend;
@@ -23,7 +24,7 @@ mod test_support;
 use egui::{IconData, ViewportBuilder};
 
 use app::LauncherApp;
-use backend::NativeClientBackend;
+use backend::VisualClientBackend;
 use model::LauncherData;
 use paths::LauncherDirs;
 use state::LauncherState;
@@ -54,7 +55,7 @@ pub fn run() -> Result<(), String> {
         options,
         Box::new(move |cc| {
             let data = LauncherData::load_settings(dirs);
-            let state = LauncherState::new(data, Box::new(NativeClientBackend));
+            let state = LauncherState::new(data, Box::new(VisualClientBackend::default()));
             Ok(Box::new(LauncherApp::new(&cc.egui_ctx, state)))
         }),
     )

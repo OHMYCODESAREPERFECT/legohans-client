@@ -25,7 +25,7 @@ fn main() -> ExitCode {
         Ok(Some(screen)) => match lc_ui::ingame::run(screen) {
             Ok(()) => ExitCode::SUCCESS,
             Err(message) => {
-                eprintln!("The in-game UI preview could not start: {message}");
+                eprintln!("The game client could not start: {message}");
                 ExitCode::FAILURE
             }
         },

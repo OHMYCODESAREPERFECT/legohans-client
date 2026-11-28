@@ -146,7 +146,7 @@ impl LauncherState {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::backend::{LaunchFailure, NativeClientBackend};
+    use crate::backend::LaunchFailure;
     use crate::model::server::ServerEntry;
     use crate::paths::LauncherDirs;
     use crate::test_support::TempDir;
@@ -187,7 +187,14 @@ pub(crate) mod tests {
     #[test]
     fn launch_requires_account() {
         let t = TempDir::new();
-        let mut state = test_state(&t, Box::new(NativeClientBackend));
+        let mut state = test_state(
+            &t,
+            Box::new(MockBackend {
+                ready: Rc::new(RefCell::new(true)),
+                launches: Rc::new(RefCell::new(Vec::new())),
+                fail: false,
+            }),
+        );
         assert_eq!(state.launch(None), Err(LaunchBlocked::NoAccount));
         assert!(!state.last_launch.as_ref().unwrap().success);
     }
@@ -195,7 +202,14 @@ pub(crate) mod tests {
     #[test]
     fn unavailable_backend_blocks_launch_honestly() {
         let t = TempDir::new();
-        let mut state = test_state(&t, Box::new(NativeClientBackend));
+        let mut state = test_state(
+            &t,
+            Box::new(MockBackend {
+                ready: Rc::new(RefCell::new(false)),
+                launches: Rc::new(RefCell::new(Vec::new())),
+                fail: false,
+            }),
+        );
         state.data.accounts.add_offline("Alex").unwrap();
         let err = state.launch(None).unwrap_err();
         assert!(matches!(err, LaunchBlocked::BackendUnavailable(_)));
@@ -280,7 +294,14 @@ pub(crate) mod tests {
     #[test]
     fn microsoft_accounts_cannot_launch_yet() {
         let t = TempDir::new();
-        let mut state = test_state(&t, Box::new(NativeClientBackend));
+        let mut state = test_state(
+            &t,
+            Box::new(MockBackend {
+                ready: Rc::new(RefCell::new(true)),
+                launches: Rc::new(RefCell::new(Vec::new())),
+                fail: false,
+            }),
+        );
         state
             .data
             .accounts

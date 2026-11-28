@@ -2,7 +2,7 @@
 
 An independent implementation of the Minecraft: Java Edition **1.21.11** client, written entirely in Rust.
 
-> **Status: Task 004 (in-game UI preview).** The launcher window, customization tools and visual-only in-game menu preview work. The native game itself does not exist yet, so nothing is played inside the preview.
+> **Status: Task 004 (visual game-client shell).** The launcher window, customization tools and visual-only game-client window work. Pressing Play opens the game client; the native world/rendering game itself does not exist yet.
 
 ## What works today and what does not
 
@@ -22,7 +22,7 @@ An independent implementation of the Minecraft: Java Edition **1.21.11** client,
 | Window and executable icon | Working: a black "LC" cube; embedded into Windows executables where supported |
 | Update check | Placeholder: no update channel exists, and the splash says so |
 | Microsoft sign-in | Not implemented. The button is disabled and no tokens are stored |
-| Launching the game | Not possible in the preview: Play opens Legohan's Client launcher instead of starting a world or connecting to a server. The native Rust game is still unimplemented |
+| Launching the game | Play opens the visual-only game-client window: Mojang splash, then the Java Edition-style main menu with a live six-face panorama. No world loads, no server connects; native gameplay is still unimplemented |
 
 When a game backend implements `GameBackend` and reports `Ready`, Play launches it immediately with no extra steps.
 
@@ -85,7 +85,7 @@ The toolchain is pinned in `rust-toolchain.toml` (Rust 1.91.0). With [rustup](ht
 
 ```
 cargo run -p lc-app                 # opens the launcher
-cargo run -p lc-app -- --ingame-ui main-menu  # opens the visual-only menu preview
+cargo run -p lc-app -- --ingame-ui main-menu  # opens the visual-only game-client window
 cargo run -p lc-app -- --version
 cargo test --workspace
 cargo fmt --all --check
