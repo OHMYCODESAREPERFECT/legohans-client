@@ -185,8 +185,14 @@ pub struct VisualSettings {
     pub difficulty: u8,
     /// Allow cheats toggle for the fake world.
     pub allow_cheats: bool,
+    /// Game mode label index.
+    pub game_mode: u8,
     /// World type label index.
     pub world_type: u8,
+    /// Generate structures toggle.
+    pub generate_structures: bool,
+    /// Bonus chest toggle.
+    pub bonus_chest: bool,
 }
 
 impl Default for VisualSettings {
@@ -205,7 +211,10 @@ impl Default for VisualSettings {
             text_background: true,
             difficulty: 2,
             allow_cheats: false,
+            game_mode: 0,
             world_type: 0,
+            generate_structures: true,
+            bonus_chest: false,
         }
     }
 }

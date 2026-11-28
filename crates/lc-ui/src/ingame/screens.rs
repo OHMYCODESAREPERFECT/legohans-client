@@ -616,7 +616,13 @@ fn world_editor_scaffold(
     let bw = field_w.min(visuals.px(200.0));
     let world_type = format!(
         "World Type: {}",
-        ["Default", "Flat", "Amplified", "Customized"][state.settings.world_type as usize]
+        [
+            "Default",
+            "Superflat",
+            "Large Biomes",
+            "AMPLIFIED",
+            "Single Biome",
+        ][state.settings.world_type as usize % 5]
     );
     if widgets::button(
         ui,
@@ -630,10 +636,10 @@ fn world_editor_scaffold(
     )
     .clicked()
     {
-        state.settings.world_type = (state.settings.world_type + 1) % 4;
+        state.settings.world_type = (state.settings.world_type + 1) % 5;
     }
     y += visuals.px(26.0);
-    let structures = if state.settings.allow_cheats {
+    let structures = if state.settings.generate_structures {
         "Structures: On"
     } else {
         "Structures: Off"
@@ -685,7 +691,7 @@ fn world_editor_scaffold(
         },
     );
     let gamemode =
-        ["Survival", "Creative", "Adventure", "Spectator"][state.settings.world_type as usize % 4];
+        ["Survival", "Creative", "Adventure", "Spectator"][state.settings.game_mode as usize % 4];
     draw_setting_button(
         ui,
         right,
@@ -694,7 +700,7 @@ fn world_editor_scaffold(
             y: &mut ry,
             row_h,
             text: &format!("Game Mode: {gamemode}"),
-            value: &mut state.settings.world_type,
+            value: &mut state.settings.game_mode,
             variants: 4,
         },
     );
@@ -871,7 +877,7 @@ fn create_world(
     let field_x = rect.min.x + rect.width() * 0.257;
     let field_w = rect.width() * 0.487;
 
-    if state.world_tab != 2 {
+    if state.world_tab == 0 {
         let label_y = rect.min.y + rect.height() * 0.143;
         visuals.font.draw(
             ui.painter(),
@@ -894,7 +900,7 @@ fn create_world(
         let modes = ["Survival", "Creative", "Adventure", "Spectator"];
         let mode = format!(
             "Game Mode: {}",
-            modes[state.settings.world_type as usize % 4]
+            modes[state.settings.game_mode as usize % 4]
         );
         if widgets::button(
             ui,
@@ -905,7 +911,7 @@ fn create_world(
         )
         .clicked()
         {
-            state.settings.world_type = (state.settings.world_type + 1) % 4;
+            state.settings.game_mode = (state.settings.game_mode + 1) % 4;
         }
         let difficulty =
             ["Peaceful", "Easy", "Normal", "Hard"][state.settings.difficulty as usize % 4];
@@ -941,6 +947,117 @@ fn create_world(
         .clicked()
         {
             state.settings.allow_cheats = !state.settings.allow_cheats;
+        }
+    } else if state.world_tab == 1 {
+        // World tab: world type, seed, structures and bonus chest.
+        let wx = rect.width() * 0.06;
+        let ww = rect.width() * 0.88;
+        let types = [
+            "Default",
+            "Superflat",
+            "Large Biomes",
+            "AMPLIFIED",
+            "Single Biome",
+        ];
+        let type_text = format!(
+            "World Type: {}",
+            types[state.settings.world_type as usize % 5]
+        );
+        let top_y = rect.min.y + rect.height() * 0.13;
+        let top_h = rect.height() * 0.085;
+        if widgets::button(
+            ui,
+            Rect::from_min_size(pos2(wx, top_y), vec2(ww * 0.48, top_h)),
+            &type_text,
+            visuals,
+            true,
+        )
+        .clicked()
+        {
+            state.settings.world_type = (state.settings.world_type + 1) % 5;
+        }
+        widgets::button(
+            ui,
+            Rect::from_min_size(pos2(wx + ww * 0.52, top_y), vec2(ww * 0.48, top_h)),
+            "Customize",
+            visuals,
+            true,
+        );
+
+        let seed_label_y = top_y + top_h + rect.height() * 0.03;
+        visuals.font.draw(
+            ui.painter(),
+            pos2(wx, seed_label_y),
+            "Seed for the world generator",
+            visuals.scale + 1,
+            TEXT,
+            true,
+        );
+        let seed_rect = Rect::from_min_size(
+            pos2(wx, seed_label_y + rect.height() * 0.045),
+            vec2(ww, rect.height() * 0.12),
+        );
+        let seed_text = if state.seed.is_empty() {
+            "Leave blank for a random seed"
+        } else {
+            &state.seed
+        };
+        widgets::text_field(ui, seed_rect, seed_text, visuals);
+
+        let toggle_x = rect.max.x - wx - ww * 0.11;
+        let toggle_w = ww * 0.11;
+        let row_h = rect.height() * 0.085;
+        let mut row_y = seed_rect.max.y + rect.height() * 0.035;
+
+        visuals.font.draw(
+            ui.painter(),
+            pos2(wx, row_y + visuals.px(2.0)),
+            "Generate Structures",
+            visuals.scale + 1,
+            TEXT,
+            true,
+        );
+        let structures = if state.settings.generate_structures {
+            "ON"
+        } else {
+            "OFF"
+        };
+        if widgets::button(
+            ui,
+            Rect::from_min_size(pos2(toggle_x, row_y), vec2(toggle_w, row_h)),
+            structures,
+            visuals,
+            true,
+        )
+        .clicked()
+        {
+            state.settings.generate_structures = !state.settings.generate_structures;
+        }
+
+        row_y += row_h + rect.height() * 0.025;
+        visuals.font.draw(
+            ui.painter(),
+            pos2(wx, row_y + visuals.px(2.0)),
+            "Bonus Chest",
+            visuals.scale + 1,
+            TEXT,
+            true,
+        );
+        let bonus = if state.settings.bonus_chest {
+            "ON"
+        } else {
+            "OFF"
+        };
+        if widgets::button(
+            ui,
+            Rect::from_min_size(pos2(toggle_x, row_y), vec2(toggle_w, row_h)),
+            bonus,
+            visuals,
+            true,
+        )
+        .clicked()
+        {
+            state.settings.bonus_chest = !state.settings.bonus_chest;
         }
     } else {
         // More tab: Game Rules / Experiments / Data Packs.
