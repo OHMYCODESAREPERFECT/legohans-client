@@ -111,32 +111,6 @@ impl Screen {
     ];
 }
 
-/// A fake singleplayer world entry.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WorldEntry {
-    /// Display name.
-    pub name: &'static str,
-    /// Secondary information line.
-    pub detail: &'static str,
-    /// Icon variant.
-    pub icon: usize,
-}
-
-/// A fake multiplayer server entry.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ServerEntry {
-    /// Display name.
-    pub name: &'static str,
-    /// Address shown under the name.
-    pub address: &'static str,
-    /// Message of the day.
-    pub motd: &'static str,
-    /// Ping bar index, 1..=5, or 0 for unreachable.
-    pub ping: usize,
-    /// Player count text.
-    pub players: &'static str,
-}
-
 /// Placeholder language entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LanguageEntry {
@@ -145,67 +119,6 @@ pub struct LanguageEntry {
     /// Display name.
     pub name: &'static str,
 }
-
-/// Placeholder worlds shown in the visual list.
-pub const WORLDS: [WorldEntry; 5] = [
-    WorldEntry {
-        name: "Mountain Hollow",
-        detail: "Overworld • 4 days • Survival",
-        icon: 0,
-    },
-    WorldEntry {
-        name: "Copper Coast",
-        detail: "Overworld • 18 days • Creative",
-        icon: 1,
-    },
-    WorldEntry {
-        name: "Deep Dark Test",
-        detail: "Overworld • 2 days • Hardcore",
-        icon: 2,
-    },
-    WorldEntry {
-        name: "Pale Garden",
-        detail: "Overworld • 31 days • Survival",
-        icon: 3,
-    },
-    WorldEntry {
-        name: "Old World 1.12",
-        detail: "Upgrade needed • 96 days",
-        icon: 4,
-    },
-];
-
-/// Placeholder servers shown in the visual list.
-pub const SERVERS: [ServerEntry; 4] = [
-    ServerEntry {
-        name: "Hermitcraft",
-        address: "mc.hermitcraft.com",
-        motd: "A friendly survival community",
-        ping: 5,
-        players: "32/150",
-    },
-    ServerEntry {
-        name: "Legohan Test Realm",
-        address: "play.example.net",
-        motd: "Visual preview only - no connection is made",
-        ping: 4,
-        players: "7/20",
-    },
-    ServerEntry {
-        name: "Block Party",
-        address: "minigames.example.org",
-        motd: "Bed Wars • SkyWars • Spleef",
-        ping: 3,
-        players: "118/500",
-    },
-    ServerEntry {
-        name: "Offline Archive",
-        address: "old.example.com",
-        motd: "Connection refused",
-        ping: 0,
-        players: "0/0",
-    },
-];
 
 /// Placeholder languages.
 pub const LANGUAGES: [LanguageEntry; 8] = [
@@ -308,10 +221,6 @@ pub struct MenuState {
     pub time: f32,
     /// Screen fade-in progress, 0..=1.
     pub transition: f32,
-    /// Selected fake world.
-    pub selected_world: usize,
-    /// Selected fake server.
-    pub selected_server: usize,
     /// Selected language.
     pub selected_language: usize,
     /// Fake world name field.
@@ -345,8 +254,6 @@ impl MenuState {
             stack: Vec::new(),
             time: 0.0,
             transition: 0.0,
-            selected_world: 0,
-            selected_server: 0,
             selected_language: 0,
             world_name: "New World".to_string(),
             seed: String::new(),
@@ -446,12 +353,8 @@ mod tests {
     }
 
     #[test]
-    fn placeholders_are_non_empty_and_consistent() {
-        assert!(WORLDS.iter().all(|w| !w.name.is_empty()));
-        assert!(SERVERS.iter().all(|s| !s.address.is_empty()));
+    fn languages_are_non_empty_and_consistent() {
         assert!(LANGUAGES.iter().all(|l| !l.name.is_empty()));
-        assert_eq!(WORLDS.len(), 5);
-        assert_eq!(SERVERS.len(), 4);
         assert_eq!(LANGUAGES.len(), 8);
     }
 }

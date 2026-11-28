@@ -1,12 +1,10 @@
 //! Visual-only Minecraft Java Edition menu screens.
 
-use egui::{Color32, Image, Painter, Pos2, Rect, Sense, Ui, pos2, vec2};
+use egui::{Color32, Image, Painter, Rect, Sense, Ui, pos2, vec2};
 
 use super::{
     panorama::Panorama,
-    state::{
-        LANGUAGES, LanguageEntry, MenuState, SERVERS, Screen, ServerEntry, WORLDS, WorldEntry,
-    },
+    state::{LANGUAGES, LanguageEntry, MenuState, Screen},
     widgets::{self, Visuals},
 };
 
@@ -25,7 +23,7 @@ pub fn show(
     match state.screen {
         Screen::Loading => loading(ui.painter(), rect, state, visuals),
         Screen::MainMenu => main_menu(ui, rect, state, visuals, panorama),
-        Screen::Singleplayer => singleplayer(ui, rect, state, visuals, panorama),
+        Screen::Singleplayer => create_world(ui, rect, state, visuals, panorama),
         Screen::Multiplayer => multiplayer(ui, rect, state, visuals, panorama),
         Screen::CreateWorld => create_world(ui, rect, state, visuals, panorama),
         Screen::WorldSettings => world_settings(ui, rect, state, visuals, panorama),
@@ -466,153 +464,6 @@ fn list_screen_frame(
     (list_rect, detail_rect, buttons_rect)
 }
 
-fn singleplayer(
-    ui: &mut Ui,
-    rect: Rect,
-    state: &mut MenuState,
-    visuals: &Visuals,
-    panorama: &mut Panorama,
-) {
-    let (list_rect, detail_rect, buttons_rect) =
-        list_screen_frame(ui, rect, state, visuals, panorama, false);
-    widgets::list_background(ui.painter(), list_rect, visuals, false);
-    let row_h = visuals.px(36.0);
-    let scroll_w = visuals.px(6.0);
-    for (i, world) in WORLDS.iter().enumerate() {
-        let row = Rect::from_min_size(
-            pos2(
-                list_rect.min.x + visuals.px(2.0),
-                list_rect.min.y + visuals.px(2.0) + i as f32 * (row_h + visuals.px(2.0)),
-            ),
-            vec2(list_rect.width() - scroll_w - visuals.px(6.0), row_h),
-        );
-        if row.max.y > list_rect.max.y {
-            break;
-        }
-        let selected = i == state.selected_world;
-        let response = ui.interact(row, ui.id().with(("world-row", i)), Sense::click());
-        if selected {
-            ui.painter().rect_filled(
-                row,
-                egui::CornerRadius::ZERO,
-                Color32::from_rgba_premultiplied(90, 110, 150, 110),
-            );
-        } else if response.hovered() {
-            ui.painter().rect_filled(
-                row,
-                egui::CornerRadius::ZERO,
-                Color32::from_rgba_premultiplied(80, 80, 90, 80),
-            );
-        }
-        if response.clicked() {
-            state.selected_world = i;
-        }
-        draw_world_icon(
-            ui.painter(),
-            world,
-            visuals,
-            row.min + vec2(visuals.px(2.0), visuals.px(2.0)),
-        );
-        visuals.font.draw(
-            ui.painter(),
-            row.min + vec2(visuals.px(22.0), visuals.px(4.0)),
-            world.name,
-            visuals.scale,
-            TEXT,
-            true,
-        );
-        visuals.font.draw(
-            ui.painter(),
-            row.min + vec2(visuals.px(22.0), visuals.px(20.0)),
-            world.detail,
-            visuals.scale,
-            DIM,
-            true,
-        );
-    }
-    let bar = Rect::from_min_size(
-        pos2(
-            list_rect.max.x - scroll_w - visuals.px(2.0),
-            list_rect.min.y + visuals.px(2.0),
-        ),
-        vec2(scroll_w, list_rect.height() - visuals.px(4.0)),
-    );
-    widgets::scrollbar(ui.painter(), bar, 0.0, visuals);
-
-    widgets::panel(ui.painter(), detail_rect, visuals, false);
-    let selected = &WORLDS[state.selected_world];
-    visuals.font.draw(
-        ui.painter(),
-        detail_rect.min + vec2(visuals.px(10.0), visuals.px(12.0)),
-        selected.name,
-        visuals.scale + 1,
-        TEXT,
-        true,
-    );
-    let info = [
-        "Visual placeholder world".to_string(),
-        selected.detail.to_string(),
-        format!("Last played: {} days ago", selected.icon * 3 + 1),
-        "No world data is loaded.".to_string(),
-    ];
-    for (i, line) in info.iter().enumerate() {
-        visuals.font.draw(
-            ui.painter(),
-            detail_rect.min + vec2(visuals.px(10.0), visuals.px(42.0 + i as f32 * 16.0)),
-            line,
-            visuals.scale,
-            DIM,
-            true,
-        );
-    }
-
-    let bw = visuals.px(200.0);
-    let bh = visuals.px(20.0);
-    let gap = visuals.px(4.0);
-    let by = buttons_rect.max.y - (bh * 3.0 + gap * 2.0);
-    let left = buttons_rect.min.x + visuals.px(2.0);
-    let play = Rect::from_min_size(pos2(left, by), vec2(bw, bh));
-    let create = Rect::from_min_size(pos2(left, by + bh + gap), vec2(bw, bh));
-    let back = Rect::from_min_size(pos2(left, by + (bh + gap) * 2.0), vec2(bw, bh));
-    // Visual-only: world loading is intentionally not implemented.
-    widgets::button(ui, play, "Play Selected World", visuals, true);
-    if widgets::button(ui, create, "Create New World", visuals, true).clicked() {
-        state.go(Screen::CreateWorld);
-    }
-    if widgets::button(ui, back, "Back", visuals, true).clicked() {
-        state.back();
-    }
-    let delete = Rect::from_min_size(
-        pos2(buttons_rect.max.x - bw - visuals.px(2.0), by),
-        vec2(bw, bh),
-    );
-    widgets::button(ui, delete, "Delete", visuals, false);
-}
-
-fn draw_world_icon(painter: &Painter, world: &WorldEntry, visuals: &Visuals, at: Pos2) {
-    let texture = if world.icon == 4 {
-        &visuals.textures.world_warning
-    } else {
-        &visuals.textures.world_join
-    };
-    let size = visuals.px(18.0);
-    widgets::fill(
-        painter,
-        texture,
-        Rect::from_min_size(at, vec2(size, size)),
-        Color32::WHITE,
-    );
-    if world.name.contains("Hardcore") {
-        let selected = visuals.px(18.0);
-        widgets::fill(
-            painter,
-            &visuals.textures.world_selected,
-            Rect::from_min_size(at + vec2(size, 0.0), vec2(selected, selected)),
-            Color32::WHITE,
-        );
-    }
-}
-
 fn multiplayer(
     ui: &mut Ui,
     rect: Rect,
@@ -623,96 +474,27 @@ fn multiplayer(
     let (list_rect, detail_rect, buttons_rect) =
         list_screen_frame(ui, rect, state, visuals, panorama, false);
     widgets::list_background(ui.painter(), list_rect, visuals, false);
-    let row_h = visuals.px(38.0);
-    for (i, server) in SERVERS.iter().enumerate() {
-        let row = Rect::from_min_size(
-            pos2(
-                list_rect.min.x + visuals.px(2.0),
-                list_rect.min.y + visuals.px(2.0) + i as f32 * (row_h + visuals.px(2.0)),
-            ),
-            vec2(list_rect.width() - visuals.px(8.0), row_h),
-        );
-        if row.max.y > list_rect.max.y {
-            break;
-        }
-        let selected = i == state.selected_server;
-        let response = ui.interact(row, ui.id().with(("server-row", i)), Sense::click());
-        if selected {
-            ui.painter().rect_filled(
-                row,
-                egui::CornerRadius::ZERO,
-                Color32::from_rgba_premultiplied(90, 110, 150, 110),
-            );
-        } else if response.hovered() {
-            ui.painter().rect_filled(
-                row,
-                egui::CornerRadius::ZERO,
-                Color32::from_rgba_premultiplied(80, 80, 90, 80),
-            );
-        }
-        if response.clicked() {
-            state.selected_server = i;
-        }
-        draw_ping(
-            ui.painter(),
-            server,
-            visuals,
-            row.min + vec2(visuals.px(3.0), visuals.px(4.0)),
-        );
-        visuals.font.draw(
-            ui.painter(),
-            row.min + vec2(visuals.px(18.0), visuals.px(3.0)),
-            server.name,
-            visuals.scale,
-            TEXT,
-            true,
-        );
-        visuals.font.draw(
-            ui.painter(),
-            row.min + vec2(visuals.px(18.0), visuals.px(18.0)),
-            server.address,
-            visuals.scale,
-            DIM,
-            true,
-        );
-    }
-    let bar = Rect::from_min_size(
-        pos2(
-            list_rect.max.x - visuals.px(8.0),
-            list_rect.min.y + visuals.px(2.0),
-        ),
-        vec2(visuals.px(6.0), list_rect.height() - visuals.px(4.0)),
-    );
-    widgets::scrollbar(ui.painter(), bar, 0.15, visuals);
-
-    widgets::panel(ui.painter(), detail_rect, visuals, false);
-    let selected = &SERVERS[state.selected_server];
-    visuals.font.draw(
+    visuals.font.draw_centered(
         ui.painter(),
-        detail_rect.min + vec2(visuals.px(10.0), visuals.px(12.0)),
-        selected.name,
-        visuals.scale + 1,
-        TEXT,
+        list_rect,
+        "No servers saved.",
+        visuals.scale,
+        DIM,
         true,
     );
-    for (i, line) in [
-        selected.motd,
-        selected.address,
-        selected.players,
-        "No connection is made in this preview.",
-    ]
-    .iter()
-    .enumerate()
-    {
-        visuals.font.draw(
-            ui.painter(),
-            detail_rect.min + vec2(visuals.px(10.0), visuals.px(42.0 + i as f32 * 16.0)),
-            line,
-            visuals.scale,
-            DIM,
-            true,
-        );
-    }
+
+    widgets::panel(ui.painter(), detail_rect, visuals, false);
+    visuals.font.draw_centered(
+        ui.painter(),
+        Rect::from_center_size(
+            detail_rect.center(),
+            vec2(detail_rect.width() * 0.9, visuals.px(16.0)),
+        ),
+        "Add a server to see it here.",
+        visuals.scale,
+        DIM,
+        true,
+    );
 
     let bw = visuals.px(200.0);
     let bh = visuals.px(20.0);
@@ -763,22 +545,6 @@ fn multiplayer(
         true,
     );
 }
-
-fn draw_ping(painter: &Painter, server: &ServerEntry, visuals: &Visuals, at: Pos2) {
-    let size = visuals.px(12.0);
-    let texture = if server.ping == 0 {
-        &visuals.textures.server_unreachable
-    } else {
-        &visuals.textures.ping[server.ping - 1]
-    };
-    widgets::fill(
-        painter,
-        texture,
-        Rect::from_min_size(at, vec2(size, size)),
-        Color32::WHITE,
-    );
-}
-
 fn world_editor_scaffold(
     ui: &mut Ui,
     rect: Rect,
