@@ -1324,8 +1324,11 @@ dependencies = [
 name = "lc-ui"
 version = "0.0.1"
 dependencies = [
+ "eframe",
+ "egui",
  "lc-registry",
  "lc-world",
+ "png",
 ]
 
 [[package]]

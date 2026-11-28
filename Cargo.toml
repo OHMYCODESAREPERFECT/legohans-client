@@ -35,6 +35,9 @@ lc-input = { path = "crates/lc-input" }
 lc-ui = { path = "crates/lc-ui" }
 lc-launcher = { path = "crates/lc-launcher" }
 # Third-party crates are added here, once, when a task actually needs them.
+egui = { version = "0.33.3", default-features = false, features = ["default_fonts"] }
+eframe = { version = "0.33.3", default-features = false, features = ["glow", "default_fonts", "x11", "wayland"] }
+png = "0.18.1"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

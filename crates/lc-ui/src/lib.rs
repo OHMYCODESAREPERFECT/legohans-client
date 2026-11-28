@@ -1,6 +1,9 @@
 //! User interface: menus, HUD and inventory screens.
 
-/// Placeholder marker until the UI exists.
+/// Visual-only in-game menu system, separate from the launcher UI.
+pub mod ingame;
+
+/// Placeholder marker for the not-yet-implemented gameplay UI backend.
 pub const BACKEND: &str = "none";
 
 #[cfg(test)]
