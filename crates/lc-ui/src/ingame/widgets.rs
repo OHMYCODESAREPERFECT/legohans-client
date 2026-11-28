@@ -25,7 +25,7 @@ impl Visuals {
     pub fn new(ctx: &Context, splash_phrase: &str) -> Self {
         let textures = Textures::load(ctx);
         let font = BitmapFont::new(ctx, textures.font.clone());
-        let splash = SplashText::new(ctx, &font, splash_phrase, 6);
+        let splash = SplashText::new(ctx, &font, splash_phrase, 7);
         Self {
             scale: 2,
             font,
@@ -224,7 +224,7 @@ pub fn button(ui: &mut Ui, rect: Rect, label: &str, visuals: &Visuals, enabled: 
         ui.painter(),
         text_rect,
         label,
-        visuals.scale,
+        visuals.scale + 1,
         text_color,
         true,
     );

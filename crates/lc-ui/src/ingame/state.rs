@@ -6,6 +6,9 @@ pub const LOADING_DURATION: f32 = 3.2;
 /// Starting yaw used by the title-screen panorama.
 pub const PANORAMA_START_YAW: f32 = -0.25;
 
+/// Starting pitch used by the title-screen panorama.
+pub const PANORAMA_START_PITCH: f32 = 0.12;
+
 /// Yellow title-screen phrases. One is chosen at random each time the game client starts.
 pub const SPLASHES: [&str; 8] = [
     "stay strong!",
@@ -378,7 +381,7 @@ impl MenuState {
 
     /// Current panorama pitch.
     pub fn pitch(&self) -> f32 {
-        self.pitch_override.unwrap_or(0.0)
+        self.pitch_override.unwrap_or(PANORAMA_START_PITCH)
     }
 
     /// Navigate to `screen`, remembering where to return.

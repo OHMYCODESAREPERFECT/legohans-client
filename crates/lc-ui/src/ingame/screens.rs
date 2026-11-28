@@ -163,24 +163,24 @@ fn main_menu(
     );
 
     // Wordmark and the custom edition label.
-    let logo_w = (visuals.px(300.0)).min(rect.width() * 0.52);
+    let logo_w = rect.width() * 0.615;
     let logo_h = logo_w * 176.0 / 1024.0;
     let logo_center_y = rect.min.y + rect.height() * 0.19;
     let logo_rect = centered(rect, logo_w, logo_h, logo_center_y - rect.min.y);
     draw_image(ui.painter(), &visuals.textures.logo, logo_rect);
 
-    let edition_w = logo_w * 0.62;
+    let edition_w = rect.width() * 0.29;
     let edition_h = edition_w * 64.0 / 512.0;
     let edition_rect = Rect::from_center_size(
-        pos2(rect.center().x, logo_rect.max.y + visuals.px(16.0)),
+        pos2(rect.center().x, logo_rect.max.y + visuals.px(7.0)),
         vec2(edition_w, edition_h),
     );
     draw_image(ui.painter(), &visuals.textures.edition, edition_rect);
 
     // Yellow bouncing phrase, rotated over the right side of the logo.
     let splash_center = pos2(
-        rect.center().x + logo_w * 0.60,
-        logo_rect.center().y + visuals.px(4.0) + super::splash::SplashText::bounce(state.time),
+        rect.center().x + logo_w * 0.45,
+        logo_rect.center().y + visuals.px(18.0) + super::splash::SplashText::bounce(state.time),
     );
     let splash_scale = (rect.width() / 1280.0).clamp(0.45, 1.0);
     let splash_rect = Rect::from_center_size(
@@ -196,10 +196,10 @@ fn main_menu(
     ui.put(splash_rect, splash_image);
 
     // Three large vanilla-style menu buttons.
-    let button_w = visuals.px(300.0);
-    let button_h = visuals.px(20.0);
-    let gap = visuals.px(4.0);
-    let start_y = rect.min.y + rect.height() * 0.43;
+    let button_w = visuals.px(297.0);
+    let button_h = visuals.px(29.0);
+    let gap = visuals.px(7.0);
+    let start_y = rect.min.y + rect.height() * 0.443;
     let main_rects = [
         Rect::from_min_size(
             pos2(rect.center().x - button_w / 2.0, start_y),
@@ -233,20 +233,29 @@ fn main_menu(
     draw_realms_icons(ui.painter(), main_rects[2], visuals);
 
     // Bottom row: icon / Options / Quit Game / icon.
-    let small_w = visuals.px(20.0);
-    let wide_w = visuals.px(150.0);
-    let group_w = small_w * 2.0 + wide_w * 2.0 + gap * 3.0;
-    let row_y = rect.max.y - visuals.px(72.0);
+    let small_w = visuals.px(31.0);
+    let wide_w = visuals.px(146.0);
+    let row_gap = visuals.px(3.0);
+    let mid_gap = visuals.px(10.0);
+    let bottom_h = visuals.px(32.0);
+    let group_w = small_w * 2.0 + wide_w * 2.0 + row_gap * 2.0 + mid_gap;
+    let row_y = rect.min.y + rect.height() * 0.808;
     let row_x = rect.center().x - group_w / 2.0;
-    let small_left = Rect::from_min_size(pos2(row_x, row_y), vec2(small_w, button_h));
-    let options = Rect::from_min_size(pos2(row_x + small_w + gap, row_y), vec2(wide_w, button_h));
+    let small_left = Rect::from_min_size(pos2(row_x, row_y), vec2(small_w, bottom_h));
+    let options = Rect::from_min_size(
+        pos2(row_x + small_w + row_gap, row_y),
+        vec2(wide_w, bottom_h),
+    );
     let quit = Rect::from_min_size(
-        pos2(row_x + small_w + gap + wide_w + gap, row_y),
-        vec2(wide_w, button_h),
+        pos2(row_x + small_w + row_gap + wide_w + mid_gap, row_y),
+        vec2(wide_w, bottom_h),
     );
     let small_right = Rect::from_min_size(
-        pos2(row_x + small_w + gap + wide_w + gap + wide_w + gap, row_y),
-        vec2(small_w, button_h),
+        pos2(
+            row_x + small_w + row_gap + wide_w + mid_gap + wide_w + row_gap,
+            row_y,
+        ),
+        vec2(small_w, bottom_h),
     );
     widgets::button(ui, small_left, "", visuals, true);
     if widgets::button(ui, options, "Options...", visuals, true).clicked() {
@@ -259,22 +268,23 @@ fn main_menu(
     draw_bottom_icons(ui.painter(), small_left, small_right, visuals);
 
     // Vanilla-style footer text.
-    let font_y = rect.max.y - visuals.px(11.0);
+    let font_scale = visuals.scale + 2;
+    let font_y = rect.max.y - visuals.px(15.0);
     visuals.font.draw(
         ui.painter(),
-        pos2(rect.min.x + visuals.px(2.0), font_y),
+        pos2(rect.min.x + visuals.px(3.0), font_y),
         "Minecraft 1.21.11",
-        visuals.scale,
+        font_scale,
         DIM,
         true,
     );
     let copyright = "Copyright Mojang AB. Do not distribute!";
-    let copyright_w = visuals.font.width(copyright, visuals.scale);
+    let copyright_w = visuals.font.width(copyright, font_scale);
     visuals.font.draw(
         ui.painter(),
-        pos2(rect.max.x - copyright_w - visuals.px(2.0), font_y),
+        pos2(rect.max.x - copyright_w - visuals.px(5.0), font_y),
         copyright,
-        visuals.scale,
+        font_scale,
         DIM,
         true,
     );
