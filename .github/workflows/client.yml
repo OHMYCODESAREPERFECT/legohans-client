@@ -42,11 +42,43 @@ jobs:
       - name: Build launcher and in-game client
         run: cargo build --release --locked -p lc-app --bins
 
+      - name: Verify and package Windows client
+        shell: pwsh
+        run: |
+          $files = @('target/release/legohans-client.exe', 'target/release/lc-app.exe')
+          $scanLog = 'target/release/defender-scan.log'
+          Set-Content -Path $scanLog -Value 'Windows Defender release scan'
+          $mp = 'C:\Program Files\Windows Defender\MpCmdRun.exe'
+          if (-not (Test-Path $mp)) {
+            $mp = 'C:\ProgramData\Microsoft\Windows Defender\Platform\CurrentVersion\MpCmdRun.exe'
+          }
+          if (Test-Path $mp) {
+            foreach ($file in $files) {
+              $output = & $mp -Scan -ScanType 3 -File (Resolve-Path $file) 2>&1 | Out-String
+              Add-Content -Path $scanLog -Value $output
+              if ($output -notmatch 'found no threats') {
+                throw "Windows Defender did not clear $file"
+              }
+            }
+          } else {
+            Add-Content -Path $scanLog -Value 'Windows Defender was unavailable on this runner.'
+          }
+          Get-FileHash $files -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash)  $([System.IO.Path]::GetFileName($_.Path))" } |
+            Set-Content -Path 'target/release/SHA256SUMS.txt'
+          @'
+          Legohan's Client - unsigned developer build
+
+          These executables are built from source by GitHub Actions and are not code-signed.
+          Chrome or Google Safe Browsing may warn about unsigned downloads. Verify the SHA-256
+          hashes in SHA256SUMS.txt against the source tag before running, and submit a false
+          positive report to Google if your browser blocks the file.
+          '@ | Set-Content -Path 'target/release/README.txt'
+          Compress-Archive -Path ($files + @('target/release/SHA256SUMS.txt', 'target/release/README.txt', $scanLog)) -DestinationPath 'target/release/legohans-client-windows.zip' -Force
+
       - name: Upload Windows client artifact
         uses: actions/upload-artifact@v4
         with:
-          name: legohans-client-with-ingame-ui-windows
-          path: |
-            target/release/legohans-client.exe
-            target/release/lc-app.exe
+          name: legohans-client-windows-verified
+          path: target/release/legohans-client-windows.zip
           if-no-files-found: error

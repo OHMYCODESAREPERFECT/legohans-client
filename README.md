@@ -96,7 +96,9 @@ cargo clippy --workspace --all-targets -- -D warnings
 
 `.github/workflows/ci.yml` runs on every push and pull request: formatting, clippy (warnings are errors), tests and a release build on Windows, Linux and macOS. Push triggers include `main`, `task-002-launcher` and `task-003-customization`. The Windows job uploads `legohans-client.exe` and `lc-app.exe` as a downloadable artifact.
 
-`.github/workflows/client.yml` covers the Task 004 in-game client on `main` and `task-004-ingame-ui`. It runs formatting, clippy, the full workspace test suite (including the headless menu render smoke tests) and a locked Windows release build, then uploads both executables as `legohans-client-with-ingame-ui-windows`.
+`.github/workflows/client.yml` covers the Task 004 in-game client on `main` and `task-004-ingame-ui`. It runs formatting, clippy, the full workspace test suite (including the headless menu render smoke tests) and a locked Windows release build. The Windows artifact `legohans-client-windows-verified` contains a ZIP with both executables, `SHA256SUMS.txt`, a Windows Defender scan log, and a README.
+
+The release binaries are unsigned, so Chrome or Google Safe Browsing may warn about the download. Verify the SHA-256 hashes and submit a false-positive report if your browser blocks the file. Code signing requires an OV/EV certificate and is the only way to remove the warning permanently.
 
 ## License
 
