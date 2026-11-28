@@ -6,10 +6,9 @@ use egui::{
 };
 
 use super::Page;
-use super::icons::{paint_block_icon, paint_letter_tile, paint_nav_icon};
+use super::icons::{paint_brand_icon, paint_letter_tile, paint_nav_icon};
 use super::theme::Theme;
 use super::widgets::glow;
-use crate::model::profile::ProfileIcon;
 
 const EXPANDED: f32 = 232.0;
 const COMPACT: f32 = 72.0;
@@ -72,12 +71,7 @@ pub fn show(
                 Pos2::new(rect.left() + 20.0, rect.center().y),
                 Vec2::splat(34.0),
             );
-            paint_block_icon(
-                ui.painter(),
-                icon_rect,
-                ProfileIcon::Amethyst,
-                theme.accent_alpha(70),
-            );
+            paint_brand_icon(ui.painter(), icon_rect, theme.accent_alpha(70));
             if expanded {
                 let alpha = ((width - 150.0) / 80.0).clamp(0.0, 1.0);
                 let fade = |c: Color32| c.gamma_multiply(alpha);

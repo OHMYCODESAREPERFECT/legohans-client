@@ -5,25 +5,37 @@
 
 /// Icon width and height in pixels.
 pub const SIZE: usize = 64;
+/// Distance from the icon center to a cube vertex, in icon pixels.
+pub const CUBE_RADIUS: f32 = SIZE as f32 / 2.0 - 3.0;
+/// Face colors shared with the in-app vector brand mark.
+pub const FACE_TOP: [u8; 3] = [30, 30, 38];
+pub const FACE_LEFT: [u8; 3] = [8, 8, 13];
+pub const FACE_RIGHT: [u8; 3] = [17, 17, 24];
+/// Color of the "LC" mark.
+pub const MARK_COLOR: [u8; 3] = [236, 234, 248];
+/// Top-left pixel of the 12x14 bitmap mark in the 64x64 artwork.
+pub const MARK_ORIGIN: (usize, usize) = (34, 35);
+pub const MARK_WIDTH: usize = 12;
+pub const MARK_HEIGHT: usize = 14;
 
 type Quad = [(f32, f32); 4];
 
 fn cube_faces() -> [(Quad, [u8; 3]); 3] {
     let c = SIZE as f32 / 2.0;
-    let r = c - 3.0;
+    let r = CUBE_RADIUS;
     let p = |x: f32, y: f32| (c + x * r, c + y * r);
     [
         (
             [p(0.0, -1.0), p(0.866, -0.5), p(0.0, 0.0), p(-0.866, -0.5)],
-            [30, 30, 38],
+            FACE_TOP,
         ),
         (
             [p(-0.866, -0.5), p(0.0, 0.0), p(0.0, 1.0), p(-0.866, 0.5)],
-            [8, 8, 13],
+            FACE_LEFT,
         ),
         (
             [p(0.0, 0.0), p(0.866, -0.5), p(0.866, 0.5), p(0.0, 1.0)],
-            [17, 17, 24],
+            FACE_RIGHT,
         ),
     ]
 }
@@ -51,22 +63,19 @@ const GLYPHS: [[u8; 7]; 2] = [
     [0x0e, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0e], // C
 ];
 
-fn mark_pixel(x: usize, y: usize) -> bool {
+/// Whether the mark covers the bitmap pixel at `(x, y)` relative to `MARK_ORIGIN`.
+pub fn mark_pixel(x: usize, y: usize) -> bool {
     const SCALE: usize = 2;
-    const START_X: usize = 34;
-    const START_Y: usize = 35;
-    if !(x >= START_X && y >= START_Y) {
+    if x >= MARK_WIDTH || y >= MARK_HEIGHT {
         return false;
     }
-    let local_x = x - START_X;
-    let local_y = y - START_Y;
-    let glyph = local_x / (6 * SCALE);
+    let glyph = x / (6 * SCALE);
     if glyph >= 2 {
         return false;
     }
-    let in_glyph_x = local_x % (6 * SCALE);
+    let in_glyph_x = x % (6 * SCALE);
     let col = in_glyph_x / SCALE;
-    let row = local_y / SCALE;
+    let row = y / SCALE;
     if col >= 5 || row >= 7 {
         return false;
     }
@@ -90,8 +99,11 @@ pub fn rgba() -> Vec<u8> {
             let Some(mut color) = color else {
                 continue;
             };
-            if mark_pixel(x, y) {
-                color = [236, 234, 248];
+            if x >= MARK_ORIGIN.0
+                && y >= MARK_ORIGIN.1
+                && mark_pixel(x - MARK_ORIGIN.0, y - MARK_ORIGIN.1)
+            {
+                color = MARK_COLOR;
             }
             let i = (y * SIZE + x) * 4;
             rgba[i..i + 4].copy_from_slice(&[color[0], color[1], color[2], 255]);

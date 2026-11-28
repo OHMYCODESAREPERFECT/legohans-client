@@ -381,8 +381,8 @@ fn preview(ui: &mut egui::Ui, c: &mut Ctx<'_>) {
         egui::Stroke::new(1.0, theme.border),
         egui::StrokeKind::Inside,
     );
-    let origin = rect.center() + vec2(0.0, 18.0);
-    let scale = (rect.height() * 0.78 / 32.0).min(rect.width() / 24.0);
+    let origin = rect.center();
+    let scale = (rect.height() * 0.82 / 32.0).min(rect.width() / 26.0);
     let yaw = c.ui.skin_editor.yaw.rem_euclid(TAU);
     let pitch = c.ui.skin_editor.pitch;
     let model = c.state.data.settings.skin_model;
@@ -392,14 +392,35 @@ fn preview(ui: &mut egui::Ui, c: &mut Ctx<'_>) {
         .map(TextureHandleExt::texture_id)
         .unwrap_or_default();
 
-    // Cape and elytra sit behind the player, so they are drawn first.
-    if c.ui.skin_editor.show_elytra && c.textures.get(ELYTRA_KEY).is_some() {
+    // Cape and elytra are attached behind the shoulders. Their draw order follows the camera so
+    // they are hidden by the body from the front and occlude it when viewed from the back.
+    let mut back_mesh = if c.ui.skin_editor.show_elytra && c.textures.get(ELYTRA_KEY).is_some() {
         let tex = c.textures.get(ELYTRA_KEY).unwrap();
-        let mesh = build_quad_mesh(&elytra_quads(), 32.0, tex.id(), yaw, pitch, origin, scale);
-        painter.add(Shape::mesh(mesh));
+        Some(build_box_mesh(
+            &elytra_boxes(),
+            32.0,
+            tex.id(),
+            yaw,
+            pitch,
+            origin,
+            scale,
+        ))
     } else if c.ui.skin_editor.show_cape && c.textures.get(CAPE_KEY).is_some() {
         let tex = c.textures.get(CAPE_KEY).unwrap();
-        let mesh = build_box_mesh(&cape_boxes(), 32.0, tex.id(), yaw, pitch, origin, scale);
+        Some(build_box_mesh(
+            &cape_boxes(),
+            32.0,
+            tex.id(),
+            yaw,
+            pitch,
+            origin,
+            scale,
+        ))
+    } else {
+        None
+    };
+    let back_in_front = back_equipment_in_front(yaw);
+    if !back_in_front && let Some(mesh) = back_mesh.take() {
         painter.add(Shape::mesh(mesh));
     }
 
@@ -420,6 +441,10 @@ fn preview(ui: &mut egui::Ui, c: &mut Ctx<'_>) {
         painter.add(Shape::mesh(build_box_mesh(
             &outer, 64.0, tex_id, yaw, pitch, origin, scale,
         )));
+    }
+
+    if back_in_front && let Some(mesh) = back_mesh {
+        painter.add(Shape::mesh(mesh));
     }
 
     if skin_tex.is_none() {
@@ -447,7 +472,7 @@ impl TextureHandleExt for egui::TextureHandle {
 // ---------------------------------------------------------------------------
 // Geometry and projection
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 struct V3 {
     x: f32,
     y: f32,
@@ -457,6 +482,34 @@ struct V3 {
 impl V3 {
     fn new(x: f32, y: f32, z: f32) -> Self {
         Self { x, y, z }
+    }
+
+    fn add(self, rhs: Self) -> Self {
+        Self::new(self.x + rhs.x, self.y + rhs.y, self.z + rhs.z)
+    }
+
+    fn sub(self, rhs: Self) -> Self {
+        Self::new(self.x - rhs.x, self.y - rhs.y, self.z - rhs.z)
+    }
+}
+
+/// A rigid rotation around a model pivot. Angles are applied roll, yaw, then pitch to match
+/// three.js' default Euler order for the reference model.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct Transform {
+    pivot: V3,
+    yaw: f32,
+    pitch: f32,
+    roll: f32,
+}
+
+impl Transform {
+    fn direction(self, v: V3) -> V3 {
+        rotate_axes(v, self.yaw, self.pitch, self.roll)
+    }
+
+    fn apply(self, v: V3) -> V3 {
+        self.direction(v.sub(self.pivot)).add(self.pivot)
     }
 }
 
@@ -487,14 +540,7 @@ struct BoxSpec {
     min: V3,
     max: V3,
     uv: BoxUv,
-}
-
-#[derive(Clone, Copy)]
-struct QuadSpec {
-    verts: [V3; 4],
-    uv: Uv,
-    normal: V3,
-    shade: f32,
+    transform: Transform,
 }
 
 #[derive(Clone, Copy)]
@@ -505,12 +551,21 @@ struct Face {
     shade: f32,
 }
 
-fn rotate(v: V3, yaw: f32, pitch: f32) -> V3 {
+fn rotate_axes(v: V3, yaw: f32, pitch: f32, roll: f32) -> V3 {
+    let (cr, sr) = (roll.cos(), roll.sin());
+    let x0 = v.x * cr - v.y * sr;
+    let y0 = v.x * sr + v.y * cr;
     let (cy, sy) = (yaw.cos(), yaw.sin());
-    let x1 = v.x * cy + v.z * sy;
-    let z1 = -v.x * sy + v.z * cy;
+    let x1 = x0 * cy + v.z * sy;
+    let z1 = -x0 * sy + v.z * cy;
     let (cp, sp) = (pitch.cos(), pitch.sin());
-    V3::new(x1, v.y * cp - z1 * sp, v.y * sp + z1 * cp)
+    let y2 = y0 * cp - z1 * sp;
+    let z2 = y0 * sp + z1 * cp;
+    V3::new(x1, y2, z2)
+}
+
+fn rotate(v: V3, yaw: f32, pitch: f32) -> V3 {
+    rotate_axes(v, yaw, pitch, 0.0)
 }
 
 fn project(v: V3, center: V3, yaw: f32, pitch: f32, origin: Pos2, scale: f32) -> (Pos2, f32) {
@@ -532,6 +587,7 @@ fn uv_corners(region: Uv, tex_h: f32) -> [Pos2; 4] {
 }
 
 fn box_faces(spec: BoxSpec) -> [Face; 6] {
+    let transform = spec.transform;
     let V3 {
         x: x0,
         y: y0,
@@ -542,7 +598,7 @@ fn box_faces(spec: BoxSpec) -> [Face; 6] {
         y: y1,
         z: z1,
     } = spec.max;
-    [
+    let mut faces: [Face; 6] = [
         Face {
             verts: [
                 V3::new(x0, y1, z1),
@@ -609,7 +665,12 @@ fn box_faces(spec: BoxSpec) -> [Face; 6] {
             normal: V3::new(0.0, -1.0, 0.0),
             shade: 0.62,
         },
-    ]
+    ];
+    for face in &mut faces {
+        face.verts = face.verts.map(|v| transform.apply(v));
+        face.normal = transform.direction(face.normal);
+    }
+    faces
 }
 
 struct Triangle {
@@ -643,6 +704,11 @@ impl Projection {
             scale,
         }
     }
+}
+
+/// Whether back equipment is closer to the camera than the player's torso.
+fn back_equipment_in_front(yaw: f32) -> bool {
+    rotate(V3::new(0.0, 0.0, -2.5), yaw, 0.0).z > 0.01
 }
 
 fn push_face(triangles: &mut Vec<Triangle>, face: Face, tex_h: f32, view: Projection) {
@@ -715,33 +781,6 @@ fn build_box_mesh(
         for face in box_faces(spec) {
             push_face(&mut triangles, face, tex_h, view);
         }
-    }
-    triangles_to_mesh(triangles, texture_id)
-}
-
-fn build_quad_mesh(
-    quads: &[QuadSpec],
-    tex_h: f32,
-    texture_id: TextureId,
-    yaw: f32,
-    pitch: f32,
-    origin: Pos2,
-    scale: f32,
-) -> Mesh {
-    let view = Projection::player(yaw, pitch, origin, scale);
-    let mut triangles = Vec::new();
-    for quad in quads {
-        push_face(
-            &mut triangles,
-            Face {
-                verts: quad.verts,
-                uv: quad.uv,
-                normal: quad.normal,
-                shade: quad.shade,
-            },
-            tex_h,
-            view,
-        );
     }
     triangles_to_mesh(triangles, texture_id)
 }
@@ -860,6 +899,7 @@ fn player_boxes(model: SkinModel, outer: bool, legacy: bool) -> Vec<BoxSpec> {
         min: V3::new(min.x - expand, min.y - expand, min.z - expand),
         max: V3::new(max.x + expand, max.y + expand, max.z + expand),
         uv: uvs,
+        transform: Transform::default(),
     };
     // Vanilla overlays are half a pixel wider on the head and a quarter of a pixel wider
     // everywhere else.
@@ -888,14 +928,14 @@ fn player_boxes(model: SkinModel, outer: bool, legacy: bool) -> Vec<BoxSpec> {
     };
     vec![
         box_spec(
-            V3::new(-4.0, 20.0, -4.0),
-            V3::new(4.0, 28.0, 4.0),
+            V3::new(-4.0, 24.0, -4.0),
+            V3::new(4.0, 32.0, 4.0),
             head_uv(outer),
             head_expand,
         ),
         box_spec(
             V3::new(-4.0, 12.0, -2.0),
-            V3::new(4.0, 20.0, 2.0),
+            V3::new(4.0, 24.0, 2.0),
             body_uv(outer),
             part_expand,
         ),
@@ -912,14 +952,14 @@ fn player_boxes(model: SkinModel, outer: bool, legacy: bool) -> Vec<BoxSpec> {
             part_expand,
         ),
         box_spec(
-            V3::new(-4.0, 0.0, -2.0),
-            V3::new(0.0, 12.0, 2.0),
+            V3::new(-3.9, 0.0, -2.1),
+            V3::new(0.1, 12.0, 1.9),
             right_leg,
             part_expand,
         ),
         box_spec(
-            V3::new(0.0, 0.0, -2.0),
-            V3::new(4.0, 12.0, 2.0),
+            V3::new(0.1, 0.0, -2.1),
+            V3::new(3.9, 12.0, 1.9),
             left_leg,
             part_expand,
         ),
@@ -932,45 +972,79 @@ fn skin_texture_height(legacy: bool) -> f32 {
 }
 
 fn cape_boxes() -> Vec<BoxSpec> {
+    // A 10x16x1 cape is pinned to the upper back at y=24, z=-2 and tilted 10.8 degrees so the
+    // lower edge hangs away from the player's back. The yaw turns the outside face toward -z.
     let uvs = BoxUv {
-        top: uv(0.0, 0.0, 16.0, 2.0),
-        bottom: uv(0.0, 30.0, 16.0, 32.0),
-        front: uv(16.0, 0.0, 32.0, 16.0),
-        back: uv(0.0, 0.0, 16.0, 16.0),
-        right: uv(32.0, 0.0, 34.0, 16.0),
-        left: uv(30.0, 0.0, 32.0, 16.0),
+        top: uv(1.0, 0.0, 11.0, 1.0),
+        bottom: uv(11.0, 0.0, 21.0, 1.0),
+        front: uv(1.0, 1.0, 11.0, 17.0),
+        back: uv(12.0, 1.0, 22.0, 17.0),
+        right: uv(11.0, 1.0, 12.0, 17.0),
+        left: uv(0.0, 1.0, 1.0, 17.0),
     };
     vec![BoxSpec {
-        min: V3::new(-5.0, 6.0, -3.6),
-        max: V3::new(5.0, 22.0, -3.1),
+        min: V3::new(-5.0, 8.0, -2.0),
+        max: V3::new(5.0, 24.0, -1.0),
         uv: uvs,
+        transform: Transform {
+            pivot: V3::new(0.0, 24.0, -2.0),
+            yaw: std::f32::consts::PI,
+            pitch: 10.8_f32.to_radians(),
+            roll: 0.0,
+        },
     }]
 }
 
-fn elytra_quads() -> Vec<QuadSpec> {
+fn mirror_uv_x(region: Uv) -> Uv {
+    uv(region.x1, region.y0, region.x0, region.y1)
+}
+
+fn mirror_uvs_x(uvs: BoxUv) -> BoxUv {
+    BoxUv {
+        top: mirror_uv_x(uvs.top),
+        bottom: mirror_uv_x(uvs.bottom),
+        front: mirror_uv_x(uvs.front),
+        back: mirror_uv_x(uvs.back),
+        right: mirror_uv_x(uvs.left),
+        left: mirror_uv_x(uvs.right),
+    }
+}
+
+fn elytra_uv() -> BoxUv {
+    // A 12x22x4 wing uses an 8-pixel main panel plus 2-pixel edge strips, laid out for a 64x32
+    // cape sheet starting at (22, 0).
+    BoxUv {
+        top: uv(24.0, 0.0, 32.0, 2.0),
+        bottom: uv(32.0, 0.0, 42.0, 2.0),
+        front: uv(24.0, 2.0, 32.0, 22.0),
+        back: uv(34.0, 2.0, 44.0, 22.0),
+        right: uv(32.0, 2.0, 34.0, 22.0),
+        left: uv(22.0, 2.0, 24.0, 22.0),
+    }
+}
+
+fn elytra_boxes() -> Vec<BoxSpec> {
+    // Each wing is a 12x22x4 box hinged at the shoulders (x=+/-5, y=24, z=-2), tilted 15 degrees
+    // forward and 15 degrees outward, matching the vanilla standing pose.
+    let spec = |pivot_x: f32, yaw: f32, roll: f32, uvs: BoxUv| BoxSpec {
+        min: V3::new(-6.0, 3.0, -5.0),
+        max: V3::new(6.0, 25.0, -1.0),
+        uv: uvs,
+        transform: Transform {
+            pivot: V3::new(pivot_x, 24.0, -2.0),
+            yaw,
+            pitch: 15.0_f32.to_radians(),
+            roll,
+        },
+    };
     vec![
-        QuadSpec {
-            verts: [
-                V3::new(-4.0, 22.0, -3.0),
-                V3::new(-9.0, 9.0, -4.0),
-                V3::new(-3.0, 8.0, -5.0),
-                V3::new(-1.0, 22.0, -3.0),
-            ],
-            uv: uv(46.0, 0.0, 22.0, 22.0),
-            normal: V3::new(0.0, 0.0, -1.0),
-            shade: 0.95,
-        },
-        QuadSpec {
-            verts: [
-                V3::new(1.0, 22.0, -3.0),
-                V3::new(3.0, 8.0, -5.0),
-                V3::new(9.0, 9.0, -4.0),
-                V3::new(4.0, 22.0, -3.0),
-            ],
-            uv: uv(22.0, 0.0, 46.0, 22.0),
-            normal: V3::new(0.0, 0.0, -1.0),
-            shade: 0.95,
-        },
+        spec(5.0, 0.01, 15.0_f32.to_radians(), elytra_uv()),
+        spec(
+            -5.0,
+            -0.01,
+            -15.0_f32.to_radians(),
+            mirror_uvs_x(elytra_uv()),
+        ),
     ]
 }
 
@@ -1087,14 +1161,35 @@ mod tests {
     }
 
     #[test]
+    fn player_parts_use_minecraft_32_pixel_coordinates() {
+        let parts = player_boxes(SkinModel::Classic, false, false);
+        assert_eq!((parts[0].min.y, parts[0].max.y), (24.0, 32.0));
+        assert_eq!((parts[0].max.x - parts[0].min.x), 8.0);
+        assert_eq!((parts[1].min.y, parts[1].max.y), (12.0, 24.0));
+        assert_eq!((parts[2].min.y, parts[2].max.y), (12.0, 24.0));
+        assert_eq!((parts[3].min.y, parts[3].max.y), (12.0, 24.0));
+        assert_eq!((parts[4].min.y, parts[4].max.y), (0.0, 12.0));
+        assert_eq!(parts[4].min, V3::new(-3.9, 0.0, -2.1));
+        assert_eq!(parts[5].max, V3::new(3.9, 12.0, 1.9));
+        assert_eq!(
+            Projection::player(0.0, 0.0, pos2(0.0, 0.0), 1.0).center.y,
+            16.0
+        );
+    }
+
+    #[test]
     fn outer_layers_use_vanilla_thickness() {
         let outer = player_boxes(SkinModel::Classic, true, false);
-        assert_eq!(outer[0].min, V3::new(-4.5, 19.5, -4.5));
-        assert_eq!(outer[0].max, V3::new(4.5, 28.5, 4.5));
+        assert_eq!(outer[0].min, V3::new(-4.5, 23.5, -4.5));
+        assert_eq!(outer[0].max, V3::new(4.5, 32.5, 4.5));
         assert_eq!(outer[1].min, V3::new(-4.25, 11.75, -2.25));
-        assert_eq!(outer[1].max, V3::new(4.25, 20.25, 2.25));
+        assert_eq!(outer[1].max, V3::new(4.25, 24.25, 2.25));
         assert_eq!(outer[2].min, V3::new(-8.25, 11.75, -2.25));
         assert_eq!(outer[2].max, V3::new(-3.75, 24.25, 2.25));
+        let slim = player_boxes(SkinModel::Slim, true, false);
+        assert_eq!(slim[2].min.x, -7.25);
+        assert_eq!(slim[3].max.x, 7.25);
+        assert!(player_boxes(SkinModel::Classic, true, true).is_empty());
     }
 
     #[test]
@@ -1106,12 +1201,53 @@ mod tests {
     }
 
     #[test]
-    fn elytra_wings_use_the_wing_region_of_the_texture() {
-        let wings = elytra_quads();
+    fn cape_is_pinned_to_the_upper_back_and_flares_outward() {
+        let cape = cape_boxes();
+        assert_eq!(cape.len(), 1);
+        let spec = cape[0];
+        assert_eq!(
+            (spec.max.x - spec.min.x, spec.max.y - spec.min.y),
+            (10.0, 16.0)
+        );
+        assert_eq!(spec.transform.pivot, V3::new(0.0, 24.0, -2.0));
+        assert_eq!(spec.min.y, 8.0);
+        assert_eq!(spec.max.y, 24.0);
+        let top = spec.transform.apply(V3::new(0.0, 24.0, -2.0));
+        let bottom = spec.transform.apply(V3::new(0.0, 8.0, -1.0));
+        assert_eq!(top, V3::new(0.0, 24.0, -2.0), "top stays at the shoulders");
+        assert!(
+            bottom.z < top.z - 2.0,
+            "lower edge flares behind the player"
+        );
+    }
+
+    #[test]
+    fn elytra_wings_hinge_at_both_shoulders_and_mirror_their_uvs() {
+        let wings = elytra_boxes();
         assert_eq!(wings.len(), 2);
-        assert_eq!((wings[0].uv.x0, wings[0].uv.x1), (46.0, 22.0));
-        assert_eq!((wings[1].uv.x0, wings[1].uv.x1), (22.0, 46.0));
-        assert!(wings.iter().all(|w| w.uv.y0 == 0.0 && w.uv.y1 <= 32.0));
+        assert_eq!(wings[0].transform.pivot, V3::new(5.0, 24.0, -2.0));
+        assert_eq!(wings[1].transform.pivot, V3::new(-5.0, 24.0, -2.0));
+        assert_eq!(wings[0].transform.roll, -wings[1].transform.roll);
+        assert_eq!(wings[0].transform.yaw, -wings[1].transform.yaw);
+        assert_eq!(wings[0].transform.pitch, wings[1].transform.pitch);
+        assert_eq!((wings[0].uv.top.x0, wings[0].uv.top.x1), (24.0, 32.0));
+        assert_eq!((wings[0].uv.bottom.x0, wings[0].uv.bottom.x1), (32.0, 42.0));
+        assert_eq!((wings[0].uv.front.x0, wings[0].uv.front.x1), (24.0, 32.0));
+        assert_eq!((wings[0].uv.back.x0, wings[0].uv.back.x1), (34.0, 44.0));
+        assert_eq!((wings[0].uv.right.x0, wings[0].uv.right.x1), (32.0, 34.0));
+        assert_eq!((wings[0].uv.left.x0, wings[0].uv.left.x1), (22.0, 24.0));
+        assert_eq!((wings[1].uv.front.x0, wings[1].uv.front.x1), (32.0, 24.0));
+        assert!(wings.iter().all(|w| w.uv.back.y1 <= 32.0));
+        let hinge = wings[0].transform.apply(V3::new(5.0, 24.0, -2.0));
+        assert_eq!(hinge, V3::new(5.0, 24.0, -2.0));
+    }
+
+    #[test]
+    fn back_equipment_draw_order_follows_a_full_rotation() {
+        assert!(!back_equipment_in_front(DEFAULT_YAW));
+        assert!(!back_equipment_in_front(std::f32::consts::FRAC_PI_2));
+        assert!(back_equipment_in_front(std::f32::consts::PI));
+        assert!(!back_equipment_in_front(TAU - 0.01));
     }
 
     #[test]

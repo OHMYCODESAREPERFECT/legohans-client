@@ -7,6 +7,10 @@ use egui::{
 
 use super::Page;
 use super::widgets::{glow, gradient_v};
+use crate::icon::{
+    CUBE_RADIUS, FACE_LEFT, FACE_RIGHT, FACE_TOP, MARK_COLOR, MARK_HEIGHT, MARK_ORIGIN, MARK_WIDTH,
+    mark_pixel,
+};
 use crate::model::profile::ProfileIcon;
 use crate::util::hash_str;
 
@@ -14,6 +18,78 @@ fn pts(center: Pos2, u: f32, list: &[(f32, f32)]) -> Vec<Pos2> {
     list.iter()
         .map(|(x, y)| Pos2::new(center.x + x * u, center.y + y * u))
         .collect()
+}
+
+/// Paint the launcher brand mark: the same black LC cube used for the window icon.
+///
+/// This is deliberately separate from `paint_block_icon`, which draws the user-selectable
+/// installation profile blocks.
+pub fn paint_brand_icon(painter: &Painter, rect: Rect, glow_color: Color32) {
+    let center = rect.center();
+    let r = rect.width().min(rect.height()) * 0.5;
+    let p = |x: f32, y: f32| Pos2::new(center.x + x * r, center.y + y * r);
+    glow(
+        painter,
+        Rect::from_center_size(center, Vec2::splat(r)),
+        (r * 0.3) as u8,
+        glow_color,
+        (r * 0.9).min(48.0) as u8,
+    );
+    let edge = Stroke::new(1.0, Color32::from_black_alpha(90));
+    let (t, ur, lr, b, ll, ul, m) = (
+        p(0.0, -1.0),
+        p(0.866, -0.5),
+        p(0.866, 0.5),
+        p(0.0, 1.0),
+        p(-0.866, 0.5),
+        p(-0.866, -0.5),
+        p(0.0, 0.0),
+    );
+    painter.add(Shape::convex_polygon(
+        vec![ul, m, b, ll],
+        Color32::from_rgb(FACE_LEFT[0], FACE_LEFT[1], FACE_LEFT[2]),
+        edge,
+    ));
+    painter.add(Shape::convex_polygon(
+        vec![m, ur, lr, b],
+        Color32::from_rgb(FACE_RIGHT[0], FACE_RIGHT[1], FACE_RIGHT[2]),
+        edge,
+    ));
+    painter.add(Shape::convex_polygon(
+        vec![t, ur, m, ul],
+        Color32::from_rgb(FACE_TOP[0], FACE_TOP[1], FACE_TOP[2]),
+        edge,
+    ));
+    for rect in brand_mark_rects(rect) {
+        painter.rect_filled(
+            rect,
+            CornerRadius::ZERO,
+            Color32::from_rgb(MARK_COLOR[0], MARK_COLOR[1], MARK_COLOR[2]),
+        );
+    }
+}
+
+/// Map the shared bitmap mark onto a brand icon rectangle.
+fn brand_mark_rects(rect: Rect) -> Vec<Rect> {
+    let scale = rect.width().min(rect.height()) * 0.5 / CUBE_RADIUS;
+    let center = rect.center();
+    let mut out = Vec::new();
+    for y in 0..MARK_HEIGHT {
+        for x in 0..MARK_WIDTH {
+            if !mark_pixel(x, y) {
+                continue;
+            }
+            let px = (MARK_ORIGIN.0 + x) as f32 + 0.5;
+            let py = (MARK_ORIGIN.1 + y) as f32 + 0.5;
+            let icon_center = crate::icon::SIZE as f32 / 2.0;
+            let p = Pos2::new(
+                center.x + (px - icon_center) * scale,
+                center.y + (py - icon_center) * scale,
+            );
+            out.push(Rect::from_center_size(p, Vec2::splat(scale)));
+        }
+    }
+    out
 }
 
 /// Paint the sidebar icon of `page` centered at `center`, `size` pixels wide.
@@ -330,4 +406,31 @@ pub fn paint_dash(painter: &Painter, center: Pos2, size: f32, color: Color32) {
         [center + Vec2::new(-u, 0.0), center + Vec2::new(u, 0.0)],
         Stroke::new(2.2, color),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn brand_mark_uses_the_shared_black_icon_colors() {
+        let brand = [FACE_TOP, FACE_LEFT, FACE_RIGHT];
+        assert!(brand.iter().all(|c| c[0] < 40 && c[1] < 40 && c[2] < 48));
+        assert!(MARK_COLOR[0] > 200 && MARK_COLOR[1] > 200);
+        let (top, _, _) = block_colors(ProfileIcon::Amethyst);
+        assert_ne!(
+            Color32::from_rgb(FACE_TOP[0], FACE_TOP[1], FACE_TOP[2]),
+            top
+        );
+    }
+
+    #[test]
+    fn brand_mark_bitmap_maps_inside_the_icon() {
+        let rect = Rect::from_center_size(Pos2::new(100.0, 100.0), Vec2::splat(80.0));
+        let marks = brand_mark_rects(rect);
+        assert!(marks.len() > 20);
+        assert!(marks.iter().all(|r| rect.contains(r.center())));
+        let scale = 40.0 / CUBE_RADIUS;
+        assert!(marks.iter().all(|r| r.width() <= scale + 0.001));
+    }
 }

@@ -2,10 +2,9 @@
 
 use egui::{Align2, Color32, Context, CornerRadius, FontId, Frame, Pos2, Rect, Sense, Vec2};
 
-use super::icons::{paint_block_icon, paint_check, paint_cross, paint_dash, paint_spinner};
+use super::icons::{paint_brand_icon, paint_check, paint_cross, paint_dash, paint_spinner};
 use super::theme::Theme;
 use super::widgets::{glow, gradient_v};
-use crate::model::profile::ProfileIcon;
 use crate::startup::{Stage, Startup, StepState};
 
 const STEP_NAMES: [&str; 3] = [
@@ -52,7 +51,7 @@ pub fn show(ctx: &Context, theme: &Theme, startup: &Startup, now: f64) {
                 theme.accent_alpha((50.0 + 70.0 * pulse) as u8),
                 90,
             );
-            paint_block_icon(painter, logo, ProfileIcon::Amethyst, theme.accent_alpha(80));
+            paint_brand_icon(painter, logo, theme.accent_alpha(80));
 
             painter.text(
                 Pos2::new(center.x, center.y + 98.0),
