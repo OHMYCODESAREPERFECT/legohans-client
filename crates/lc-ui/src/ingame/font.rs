@@ -33,6 +33,11 @@ impl BitmapFont {
             .sum()
     }
 
+    /// Advance of one character at an integer pixel scale.
+    pub fn advance(&self, ch: char, scale: u32) -> f32 {
+        f32::from(self.advances[glyph_index(ch) as usize]) * scale.max(1) as f32
+    }
+
     /// Height of one line at an integer pixel scale.
     pub fn line_height(&self, scale: u32) -> f32 {
         8.0 * scale.max(1) as f32

@@ -3,6 +3,21 @@
 /// Seconds the Mojang-style splash is shown before the main menu appears.
 pub const LOADING_DURATION: f32 = 3.2;
 
+/// Starting yaw used by the title-screen panorama.
+pub const PANORAMA_START_YAW: f32 = -0.25;
+
+/// Yellow title-screen phrases. One is chosen at random each time the game client starts.
+pub const SPLASHES: [&str; 8] = [
+    "stay strong!",
+    "never give up!",
+    "you got this!",
+    "keep going!",
+    "believe!",
+    "almost there!",
+    "make it count!",
+    "one more try!",
+];
+
 /// Every screen in the in-game UI preview.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Screen {
@@ -306,6 +321,17 @@ pub struct MenuState {
     pub yaw_override: Option<f32>,
     /// Optional fixed panorama pitch for deterministic captures.
     pub pitch_override: Option<f32>,
+    /// Index into [`SPLASHES`], chosen once per game-client launch.
+    pub splash_index: usize,
+}
+
+fn random_splash_index() -> usize {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos() as u64)
+        .unwrap_or(0);
+    let pid = std::process::id() as u64;
+    ((nanos ^ pid.wrapping_mul(2654435761)) as usize) % SPLASHES.len()
 }
 
 impl MenuState {
@@ -324,6 +350,7 @@ impl MenuState {
             settings: VisualSettings::default(),
             yaw_override: None,
             pitch_override: None,
+            splash_index: random_splash_index(),
         }
     }
 
@@ -341,7 +368,12 @@ impl MenuState {
     /// Current panorama yaw.
     pub fn yaw(&self) -> f32 {
         self.yaw_override
-            .unwrap_or(self.time * 0.025 * self.settings.panorama_speed)
+            .unwrap_or(PANORAMA_START_YAW + self.time * 0.012 * self.settings.panorama_speed)
+    }
+
+    /// Yellow phrase shown on the main menu for this launch.
+    pub fn splash(&self) -> &'static str {
+        SPLASHES[self.splash_index.min(SPLASHES.len() - 1)]
     }
 
     /// Current panorama pitch.
@@ -378,6 +410,15 @@ impl MenuState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn splash_phrases_are_available() {
+        assert_eq!(SPLASHES.len(), 8);
+        assert!(SPLASHES.contains(&"stay strong!"));
+        let mut state = MenuState::new(Screen::MainMenu);
+        state.splash_index = usize::MAX;
+        assert_eq!(state.splash(), SPLASHES[SPLASHES.len() - 1]);
+    }
 
     #[test]
     fn all_screens_have_unique_arg_names() {

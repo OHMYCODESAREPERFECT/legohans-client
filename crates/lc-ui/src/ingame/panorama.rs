@@ -52,8 +52,8 @@ impl Panorama {
     pub fn new(ctx: &Context) -> Self {
         let faces = assets::PANORAMA
             .map(|bytes| assets::decode(bytes).expect("invalid bundled panorama face"));
-        let image = ColorImage::new([480, 270], vec![Color32::BLACK; 480 * 270]);
-        let texture = ctx.load_texture("ingame-panorama", image.clone(), TextureOptions::LINEAR);
+        let image = ColorImage::new([960, 540], vec![Color32::BLACK; 960 * 540]);
+        let texture = ctx.load_texture("ingame-panorama", image.clone(), TextureOptions::NEAREST);
         Self {
             faces,
             texture,
@@ -68,9 +68,9 @@ impl Panorama {
 
     /// Re-render the cube projection for a yaw/pitch in radians.
     pub fn render(&mut self, yaw: f32, pitch: f32, viewport: Vec2) {
-        let width = ((viewport.x / 2.0).round() as usize).clamp(160, 480);
+        let width = (viewport.x.round() as usize).clamp(320, 960);
         let height = (width as f32 * viewport.y / viewport.x).round().max(1.0) as usize;
-        let height = height.clamp(90, 270);
+        let height = height.clamp(180, 540);
         if self.image.size != [width, height] {
             self.image = ColorImage::new([width, height], vec![Color32::BLACK; width * height]);
         }
@@ -82,8 +82,9 @@ impl Panorama {
             let screen_y = (height as f32 / 2.0 - py as f32 - 0.5) / focal;
             for px in 0..width {
                 let screen_x = (px as f32 + 0.5 - width as f32 / 2.0) / focal;
-                // Yaw 0 looks toward +Z (face 0); increasing yaw moves through faces 0,1,2,3.
-                let rx = screen_x * cy - sy;
+                // Yaw 0 looks toward +Z (face 0). Screen-right is world -X in this right-handed
+                // coordinate system, so the horizontal camera axis is negated here.
+                let rx = -screen_x * cy - sy;
                 let rz = screen_x * sy + cy;
                 let ry = screen_y * cp + rz * sp;
                 let rz2 = -screen_y * sp + rz * cp;
@@ -97,7 +98,8 @@ impl Panorama {
                     Color32::from_rgb(image.rgba[src], image.rgba[src + 1], image.rgba[src + 2]);
             }
         }
-        self.texture.set(self.image.clone(), TextureOptions::LINEAR);
+        self.texture
+            .set(self.image.clone(), TextureOptions::NEAREST);
     }
 
     /// Paint the panorama and its supplied overlay over `rect`.

@@ -22,7 +22,7 @@ An independent implementation of the Minecraft: Java Edition **1.21.11** client,
 | Window and executable icon | Working: a black "LC" cube; embedded into Windows executables where supported |
 | Update check | Placeholder: no update channel exists, and the splash says so |
 | Microsoft sign-in | Not implemented. The button is disabled and no tokens are stored |
-| Launching the game | Play opens the visual-only game-client window: Mojang splash, then the Java Edition-style main menu with a live six-face panorama. No world loads, no server connects; native gameplay is still unimplemented |
+| Launching the game | Play opens the visual-only game-client window: Mojang splash, then a Rust Edition-style main menu with a live six-face panorama, random bouncing yellow splash phrase, and vanilla button layout. No world loads, no server connects; native gameplay is still unimplemented |
 
 When a game backend implements `GameBackend` and reports `Ready`, Play launches it immediately with no extra steps.
 

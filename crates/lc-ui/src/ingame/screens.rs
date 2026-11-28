@@ -1,6 +1,6 @@
 //! Visual-only Minecraft Java Edition menu screens.
 
-use egui::{Color32, Painter, Pos2, Rect, Sense, Ui, pos2, vec2};
+use egui::{Color32, Image, Painter, Pos2, Rect, Sense, Ui, pos2, vec2};
 
 use super::{
     panorama::Panorama,
@@ -162,50 +162,229 @@ fn main_menu(
         state.pitch(),
     );
 
-    let logo_w = (visuals.px(384.0)).min(rect.width() * 0.56);
+    // Wordmark and the custom edition label.
+    let logo_w = (visuals.px(300.0)).min(rect.width() * 0.52);
     let logo_h = logo_w * 176.0 / 1024.0;
-    let logo_y = rect.min.y + rect.height() * 0.07;
-    let logo_rect = centered(rect, logo_w, logo_h, logo_y - rect.min.y);
+    let logo_center_y = rect.min.y + rect.height() * 0.19;
+    let logo_rect = centered(rect, logo_w, logo_h, logo_center_y - rect.min.y);
     draw_image(ui.painter(), &visuals.textures.logo, logo_rect);
 
-    let edition_w = logo_w * 0.42;
-    let edition_h = edition_w * 64.0 / 512.0;
-    let edition_rect = Rect::from_center_size(
-        pos2(rect.center().x, logo_rect.max.y + edition_h * 0.75),
-        vec2(edition_w, edition_h),
+    let edition_y = logo_rect.max.y + visuals.px(5.0);
+    visuals.font.draw_centered(
+        ui.painter(),
+        Rect::from_center_size(
+            pos2(rect.center().x, edition_y),
+            vec2(logo_w, visuals.px(14.0)),
+        ),
+        "RUST EDITION",
+        visuals.scale + 1,
+        Color32::from_rgb(232, 232, 224),
+        true,
     );
-    draw_image(ui.painter(), &visuals.textures.edition, edition_rect);
 
-    let label = [
-        ("Singleplayer", Screen::Singleplayer),
-        ("Multiplayer", Screen::Multiplayer),
-        ("Realms", Screen::Multiplayer),
-        ("Options", Screen::Options),
-        ("Quit Game", Screen::MainMenu),
-    ];
-    let button_w = visuals.px(200.0);
+    // Yellow bouncing phrase, rotated over the right side of the logo.
+    let splash_center = pos2(
+        rect.center().x + logo_w * 0.60,
+        logo_rect.center().y + visuals.px(4.0) + super::splash::SplashText::bounce(state.time),
+    );
+    let splash_scale = (rect.width() / 1280.0).clamp(0.45, 1.0);
+    let splash_rect = Rect::from_center_size(
+        splash_center,
+        vec2(
+            visuals.splash.width * splash_scale,
+            visuals.splash.height * splash_scale,
+        ),
+    );
+    let splash_image = Image::new(&visuals.splash.texture)
+        .fit_to_exact_size(splash_rect.size())
+        .rotate(super::splash::SplashText::angle(), vec2(0.5, 0.5));
+    ui.put(splash_rect, splash_image);
+
+    // Three large vanilla-style menu buttons.
+    let button_w = visuals.px(300.0);
     let button_h = visuals.px(20.0);
     let gap = visuals.px(4.0);
-    let start_y = edition_rect.max.y + visuals.px(18.0);
-    let rects = column(rect, button_w, button_h, gap, start_y);
-    for (rect_button, (text, target)) in rects.into_iter().zip(label) {
-        if widgets::button(ui, rect_button, text, visuals, true).clicked() {
+    let start_y = rect.min.y + rect.height() * 0.43;
+    let main_rects = [
+        Rect::from_min_size(
+            pos2(rect.center().x - button_w / 2.0, start_y),
+            vec2(button_w, button_h),
+        ),
+        Rect::from_min_size(
+            pos2(rect.center().x - button_w / 2.0, start_y + button_h + gap),
+            vec2(button_w, button_h),
+        ),
+        Rect::from_min_size(
+            pos2(
+                rect.center().x - button_w / 2.0,
+                start_y + (button_h + gap) * 2.0,
+            ),
+            vec2(button_w, button_h),
+        ),
+    ];
+    let labels = ["Singleplayer", "Multiplayer", "Minecraft Realms"];
+    let targets = [
+        Screen::Singleplayer,
+        Screen::Multiplayer,
+        Screen::Multiplayer,
+    ];
+    for (button_rect, (label, target)) in
+        main_rects.into_iter().zip(labels.into_iter().zip(targets))
+    {
+        if widgets::button(ui, button_rect, label, visuals, true).clicked() {
             state.go(target);
         }
     }
+    draw_realms_icons(ui.painter(), main_rects[2], visuals);
 
-    let copyright = Rect::from_min_size(
-        pos2(rect.min.x, rect.max.y - visuals.px(20.0)),
-        vec2(rect.width(), visuals.px(16.0)),
+    // Bottom row: icon / Options / Quit Game / icon.
+    let small_w = visuals.px(20.0);
+    let wide_w = visuals.px(150.0);
+    let group_w = small_w * 2.0 + wide_w * 2.0 + gap * 3.0;
+    let row_y = rect.max.y - visuals.px(72.0);
+    let row_x = rect.center().x - group_w / 2.0;
+    let small_left = Rect::from_min_size(pos2(row_x, row_y), vec2(small_w, button_h));
+    let options = Rect::from_min_size(pos2(row_x + small_w + gap, row_y), vec2(wide_w, button_h));
+    let quit = Rect::from_min_size(
+        pos2(row_x + small_w + gap + wide_w + gap, row_y),
+        vec2(wide_w, button_h),
     );
-    visuals.font.draw_centered(
+    let small_right = Rect::from_min_size(
+        pos2(row_x + small_w + gap + wide_w + gap + wide_w + gap, row_y),
+        vec2(small_w, button_h),
+    );
+    widgets::button(ui, small_left, "", visuals, true);
+    if widgets::button(ui, options, "Options...", visuals, true).clicked() {
+        state.go(Screen::Options);
+    }
+    if widgets::button(ui, quit, "Quit Game", visuals, true).clicked() {
+        state.go(Screen::MainMenu);
+    }
+    widgets::button(ui, small_right, "", visuals, true);
+    draw_bottom_icons(ui.painter(), small_left, small_right, visuals);
+
+    // Vanilla-style footer text.
+    let font_y = rect.max.y - visuals.px(11.0);
+    visuals.font.draw(
         ui.painter(),
-        copyright,
-        "Copyright Mojang AB. Do not distribute!",
+        pos2(rect.min.x + visuals.px(2.0), font_y),
+        "Minecraft 1.21.11",
         visuals.scale,
         DIM,
         true,
     );
+    let copyright = "Copyright Mojang AB. Do not distribute!";
+    let copyright_w = visuals.font.width(copyright, visuals.scale);
+    visuals.font.draw(
+        ui.painter(),
+        pos2(rect.max.x - copyright_w - visuals.px(2.0), font_y),
+        copyright,
+        visuals.scale,
+        DIM,
+        true,
+    );
+}
+
+fn draw_realms_icons(painter: &Painter, button: Rect, visuals: &Visuals) {
+    let unit = visuals.px(2.0);
+    let y = button.center().y;
+    let gem_x = button.max.x - visuals.px(30.0);
+    let gem = [
+        (0, -2, Color32::from_rgb(70, 220, 190)),
+        (-1, -1, Color32::from_rgb(35, 175, 160)),
+        (0, -1, Color32::from_rgb(120, 255, 225)),
+        (1, -1, Color32::from_rgb(30, 150, 140)),
+        (-1, 0, Color32::from_rgb(25, 130, 125)),
+        (0, 0, Color32::from_rgb(90, 235, 205)),
+        (1, 0, Color32::from_rgb(20, 110, 110)),
+        (0, 1, Color32::from_rgb(25, 120, 115)),
+    ];
+    for (dx, dy, color) in gem {
+        painter.rect_filled(
+            Rect::from_min_size(
+                pos2(gem_x + dx as f32 * unit, y + dy as f32 * unit),
+                vec2(unit, unit),
+            ),
+            egui::CornerRadius::ZERO,
+            color,
+        );
+    }
+    let book_x = button.max.x - visuals.px(12.0);
+    painter.rect_filled(
+        Rect::from_min_size(
+            pos2(book_x, y - visuals.px(7.0)),
+            vec2(visuals.px(10.0), visuals.px(14.0)),
+        ),
+        egui::CornerRadius::ZERO,
+        Color32::from_rgb(180, 180, 170),
+    );
+    painter.rect_filled(
+        Rect::from_min_size(
+            pos2(book_x, y - visuals.px(7.0)),
+            vec2(visuals.px(2.0), visuals.px(14.0)),
+        ),
+        egui::CornerRadius::ZERO,
+        Color32::from_rgb(120, 60, 50),
+    );
+}
+
+fn draw_bottom_icons(painter: &Painter, left: Rect, right: Rect, visuals: &Visuals) {
+    let unit = visuals.px(2.0);
+    let lc = left.center();
+    let ring = [
+        (-2, -1),
+        (-1, -2),
+        (0, -2),
+        (1, -2),
+        (2, -1),
+        (2, 0),
+        (2, 1),
+        (1, 2),
+        (0, 2),
+        (-1, 2),
+        (-2, 1),
+        (-2, 0),
+    ];
+    for (dx, dy) in ring {
+        painter.rect_filled(
+            Rect::from_min_size(
+                pos2(lc.x + dx as f32 * unit, lc.y + dy as f32 * unit),
+                vec2(unit, unit),
+            ),
+            egui::CornerRadius::ZERO,
+            Color32::from_rgb(60, 120, 180),
+        );
+    }
+    painter.rect_filled(
+        Rect::from_min_size(pos2(lc.x - unit, lc.y - unit), vec2(unit * 2.0, unit * 2.0)),
+        egui::CornerRadius::ZERO,
+        Color32::from_rgb(230, 230, 220),
+    );
+
+    let rc = right.center();
+    for (dx, dy) in [
+        (-1, -2),
+        (0, -2),
+        (1, -2),
+        (-2, -1),
+        (2, -1),
+        (-1, 0),
+        (0, 0),
+        (1, 0),
+        (-1, 1),
+        (1, 1),
+        (-1, 2),
+        (1, 2),
+    ] {
+        painter.rect_filled(
+            Rect::from_min_size(
+                pos2(rc.x + dx as f32 * unit, rc.y + dy as f32 * unit),
+                vec2(unit, unit),
+            ),
+            egui::CornerRadius::ZERO,
+            Color32::from_rgb(225, 225, 220),
+        );
+    }
 }
 
 fn loading(painter: &Painter, rect: Rect, state: &MenuState, visuals: &Visuals) {

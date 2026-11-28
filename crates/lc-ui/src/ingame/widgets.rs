@@ -5,7 +5,7 @@ use egui::{
     pos2, vec2,
 };
 
-use super::{assets::Textures, font::BitmapFont};
+use super::{assets::Textures, font::BitmapFont, splash::SplashText};
 
 /// Shared visual context for every menu screen.
 #[derive(Clone)]
@@ -16,17 +16,21 @@ pub struct Visuals {
     pub font: BitmapFont,
     /// Bundled textures.
     pub textures: Textures,
+    /// Random yellow splash phrase for this launch.
+    pub splash: SplashText,
 }
 
 impl Visuals {
     /// Build the context for a frame.
-    pub fn new(ctx: &Context) -> Self {
+    pub fn new(ctx: &Context, splash_phrase: &str) -> Self {
         let textures = Textures::load(ctx);
         let font = BitmapFont::new(ctx, textures.font.clone());
+        let splash = SplashText::new(ctx, &font, splash_phrase, 6);
         Self {
             scale: 2,
             font,
             textures,
+            splash,
         }
     }
 

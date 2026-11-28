@@ -8,6 +8,7 @@ pub mod assets;
 pub mod font;
 pub mod panorama;
 pub mod screens;
+pub mod splash;
 pub mod state;
 pub mod widgets;
 
@@ -31,9 +32,14 @@ pub struct IngameApp {
 impl IngameApp {
     /// Build the app for one starting screen.
     pub fn new(ctx: &egui::Context, screen: Screen) -> Self {
-        let visuals = Visuals::new(ctx);
-        let panorama = Panorama::new(ctx);
         let mut state = MenuState::new(screen);
+        if let Ok(index) = std::env::var("LC_INGAME_SPLASH")
+            && let Ok(index) = index.parse::<usize>()
+        {
+            state.splash_index = index.min(state::SPLASHES.len() - 1);
+        }
+        let visuals = Visuals::new(ctx, state.splash());
+        let panorama = Panorama::new(ctx);
         if let Ok(yaw) = std::env::var("LC_INGAME_YAW") {
             state.yaw_override = yaw.parse().ok();
         }
