@@ -174,10 +174,10 @@ fn main_menu(
         ui.painter(),
         Rect::from_center_size(
             pos2(rect.center().x, edition_y),
-            vec2(logo_w, visuals.px(14.0)),
+            vec2(logo_w, visuals.px(18.0)),
         ),
         "RUST EDITION",
-        visuals.scale + 1,
+        visuals.scale + 3,
         Color32::from_rgb(232, 232, 224),
         true,
     );
@@ -288,16 +288,26 @@ fn main_menu(
 fn draw_realms_icons(painter: &Painter, button: Rect, visuals: &Visuals) {
     let unit = visuals.px(2.0);
     let y = button.center().y;
-    let gem_x = button.max.x - visuals.px(30.0);
+    let gem_x = button.max.x - visuals.px(34.0);
     let gem = [
-        (0, -2, Color32::from_rgb(70, 220, 190)),
-        (-1, -1, Color32::from_rgb(35, 175, 160)),
-        (0, -1, Color32::from_rgb(120, 255, 225)),
-        (1, -1, Color32::from_rgb(30, 150, 140)),
-        (-1, 0, Color32::from_rgb(25, 130, 125)),
-        (0, 0, Color32::from_rgb(90, 235, 205)),
-        (1, 0, Color32::from_rgb(20, 110, 110)),
-        (0, 1, Color32::from_rgb(25, 120, 115)),
+        (0, -3, Color32::from_rgb(150, 255, 225)),
+        (-1, -2, Color32::from_rgb(80, 225, 195)),
+        (0, -2, Color32::from_rgb(180, 255, 235)),
+        (1, -2, Color32::from_rgb(45, 170, 155)),
+        (-2, -1, Color32::from_rgb(45, 150, 140)),
+        (-1, -1, Color32::from_rgb(100, 240, 210)),
+        (0, -1, Color32::from_rgb(200, 255, 240)),
+        (1, -1, Color32::from_rgb(70, 210, 185)),
+        (2, -1, Color32::from_rgb(25, 120, 115)),
+        (-2, 0, Color32::from_rgb(30, 130, 125)),
+        (-1, 0, Color32::from_rgb(90, 225, 195)),
+        (0, 0, Color32::from_rgb(170, 255, 230)),
+        (1, 0, Color32::from_rgb(60, 195, 170)),
+        (2, 0, Color32::from_rgb(20, 110, 105)),
+        (-1, 1, Color32::from_rgb(35, 140, 130)),
+        (0, 1, Color32::from_rgb(110, 235, 205)),
+        (1, 1, Color32::from_rgb(30, 125, 120)),
+        (0, 2, Color32::from_rgb(25, 115, 110)),
     ];
     for (dx, dy, color) in gem {
         painter.rect_filled(
@@ -309,23 +319,42 @@ fn draw_realms_icons(painter: &Painter, button: Rect, visuals: &Visuals) {
             color,
         );
     }
-    let book_x = button.max.x - visuals.px(12.0);
+
+    let book_x = button.max.x - visuals.px(18.0);
+    let book_y = y - visuals.px(8.0);
+    let book_w = visuals.px(15.0);
+    let book_h = visuals.px(16.0);
     painter.rect_filled(
         Rect::from_min_size(
-            pos2(book_x, y - visuals.px(7.0)),
-            vec2(visuals.px(10.0), visuals.px(14.0)),
+            pos2(book_x - visuals.px(1.0), book_y - visuals.px(1.0)),
+            vec2(book_w + visuals.px(2.0), book_h + visuals.px(2.0)),
         ),
         egui::CornerRadius::ZERO,
-        Color32::from_rgb(180, 180, 170),
+        Color32::from_rgb(25, 25, 25),
     );
     painter.rect_filled(
-        Rect::from_min_size(
-            pos2(book_x, y - visuals.px(7.0)),
-            vec2(visuals.px(2.0), visuals.px(14.0)),
-        ),
+        Rect::from_min_size(pos2(book_x, book_y), vec2(book_w, book_h)),
         egui::CornerRadius::ZERO,
-        Color32::from_rgb(120, 60, 50),
+        Color32::from_rgb(235, 232, 220),
     );
+    painter.rect_filled(
+        Rect::from_min_size(pos2(book_x, book_y), vec2(visuals.px(4.0), book_h)),
+        egui::CornerRadius::ZERO,
+        Color32::from_rgb(150, 55, 45),
+    );
+    for i in 1..4 {
+        painter.rect_filled(
+            Rect::from_min_size(
+                pos2(
+                    book_x + visuals.px(5.0),
+                    book_y + visuals.px(2.0 + i as f32 * 3.0),
+                ),
+                vec2(book_w - visuals.px(6.0), visuals.px(1.0)),
+            ),
+            egui::CornerRadius::ZERO,
+            Color32::from_rgb(150, 150, 145),
+        );
+    }
 }
 
 fn draw_bottom_icons(painter: &Painter, left: Rect, right: Rect, visuals: &Visuals) {
