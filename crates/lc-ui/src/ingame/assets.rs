@@ -132,6 +132,9 @@ pub static PANORAMA: [&[u8]; 6] = [
 /// Soft overlay applied over the panorama.
 pub static PANORAMA_OVERLAY: &[u8] =
     include_bytes!("../../assets/ingame/title/background/panorama_overlay.png");
+/// Static panorama face used as the menu backdrop instead of an animated cube.
+pub static PANORAMA_STILL: &[u8] =
+    include_bytes!("../../assets/ingame/title/background/panorama_0.png");
 
 /// Official 1024x176 Minecraft wordmark.
 pub static LOGO: &[u8] = include_bytes!("../../assets/ingame/title/minecraft.png");
@@ -248,6 +251,8 @@ pub struct Textures {
     pub loading: TextureHandle,
     /// Panorama vignette.
     pub overlay: TextureHandle,
+    /// Static panorama face used behind menus.
+    pub still_panorama: TextureHandle,
     /// Bitmap font atlas.
     pub font: TextureHandle,
     /// Dark menu panel.
@@ -322,6 +327,7 @@ impl Textures {
             mojang: handle(ctx, "ingame/mojang", MOJANG, 512),
             loading: handle(ctx, "ingame/loading", LOADING, 720),
             overlay: handle(ctx, "ingame/overlay", PANORAMA_OVERLAY, 512),
+            still_panorama: handle(ctx, "ingame/still-panorama", PANORAMA_STILL, 1024),
             font: handle(ctx, "ingame/font", FONT, 128),
             menu: handle(ctx, "ingame/menu", MENU_BACKGROUND, 16),
             list: handle(ctx, "ingame/list", MENU_LIST_BACKGROUND, 16),

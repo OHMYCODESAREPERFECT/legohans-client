@@ -41,12 +41,22 @@ fn backdrop(
     painter: &Painter,
     rect: Rect,
     visuals: &Visuals,
-    panorama: &mut Panorama,
-    yaw: f32,
-    pitch: f32,
+    _panorama: &mut Panorama,
+    _yaw: f32,
+    _pitch: f32,
 ) {
-    panorama.render(yaw, pitch, rect.size());
-    panorama.paint(painter, rect, &visuals.textures.overlay);
+    widgets::fill(
+        painter,
+        &visuals.textures.still_panorama,
+        rect,
+        Color32::WHITE,
+    );
+    painter.image(
+        visuals.textures.overlay.id(),
+        rect,
+        Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+        Color32::WHITE,
+    );
     painter.rect_filled(
         rect,
         egui::CornerRadius::ZERO,
