@@ -38,6 +38,11 @@ impl IngameApp {
         {
             state.splash_index = index.min(state::SPLASHES.len() - 1);
         }
+        if let Ok(tab) = std::env::var("LC_INGAME_TAB")
+            && let Ok(tab) = tab.parse::<u8>()
+        {
+            state.world_tab = tab.min(2);
+        }
         let visuals = Visuals::new(ctx, state.splash());
         let panorama = Panorama::new(ctx);
         if let Ok(yaw) = std::env::var("LC_INGAME_YAW") {

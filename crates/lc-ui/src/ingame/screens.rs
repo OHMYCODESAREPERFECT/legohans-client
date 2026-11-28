@@ -824,27 +824,40 @@ fn create_world(
         Color32::from_black_alpha(90),
     );
 
-    // Game / World / More tabs.
+    // Game / World / More tabs. Clicking a tab switches the panel below it.
     let tab_y = rect.min.y + rect.height() * 0.004;
     let tab_h = rect.height() * 0.086;
     let tabs = [
-        ("Game", rect.width() * 0.069, rect.width() * 0.283, true),
-        ("World", rect.width() * 0.356, rect.width() * 0.293, false),
-        ("More", rect.width() * 0.652, rect.width() * 0.282, false),
+        ("Game", rect.width() * 0.069, rect.width() * 0.283),
+        ("World", rect.width() * 0.356, rect.width() * 0.293),
+        ("More", rect.width() * 0.652, rect.width() * 0.282),
     ];
-    for (label, x, w, selected) in tabs {
-        let tab = Rect::from_min_size(pos2(rect.min.x + x, tab_y), vec2(w, tab_h));
+    let tab_rects: Vec<(Rect, &str)> = tabs
+        .iter()
+        .map(|(label, x, w)| {
+            (
+                Rect::from_min_size(pos2(rect.min.x + x, tab_y), vec2(*w, tab_h)),
+                *label,
+            )
+        })
+        .collect();
+    for (index, (tab, label)) in tab_rects.iter().enumerate() {
+        let response = ui.interact(*tab, ui.id().with(("world-tab", index)), Sense::click());
+        if response.clicked() {
+            state.world_tab = index as u8;
+        }
+        let selected = state.world_tab as usize == index;
         ui.painter()
-            .rect_filled(tab, egui::CornerRadius::ZERO, Color32::from_gray(12));
+            .rect_filled(*tab, egui::CornerRadius::ZERO, Color32::from_gray(12));
         ui.painter().rect_stroke(
-            tab,
+            *tab,
             egui::CornerRadius::ZERO,
             (1.0, Color32::from_gray(110)),
             egui::StrokeKind::Inside,
         );
         visuals
             .font
-            .draw_centered(ui.painter(), tab, label, visuals.scale + 1, TEXT, true);
+            .draw_centered(ui.painter(), *tab, label, visuals.scale + 1, TEXT, true);
         if selected {
             let underline = Rect::from_center_size(
                 pos2(tab.center().x, tab.max.y - visuals.px(1.0)),
@@ -857,74 +870,98 @@ fn create_world(
 
     let field_x = rect.min.x + rect.width() * 0.257;
     let field_w = rect.width() * 0.487;
-    let label_y = rect.min.y + rect.height() * 0.143;
-    visuals.font.draw(
-        ui.painter(),
-        pos2(field_x, label_y),
-        "World Name",
-        visuals.scale + 1,
-        TEXT,
-        true,
-    );
 
-    let field_rect = Rect::from_min_size(
-        pos2(field_x, rect.min.y + rect.height() * 0.197),
-        vec2(field_w, rect.height() * 0.082),
-    );
-    widgets::text_field(ui, field_rect, &state.world_name, visuals);
+    if state.world_tab != 2 {
+        let label_y = rect.min.y + rect.height() * 0.143;
+        visuals.font.draw(
+            ui.painter(),
+            pos2(field_x, label_y),
+            "World Name",
+            visuals.scale + 1,
+            TEXT,
+            true,
+        );
 
-    let button_y = rect.min.y + rect.height() * 0.313;
-    let button_h = rect.height() * 0.078;
-    let button_step = rect.height() * 0.117;
-    let modes = ["Survival", "Creative", "Adventure", "Spectator"];
-    let mode = format!(
-        "Game Mode: {}",
-        modes[state.settings.world_type as usize % 4]
-    );
-    if widgets::button(
-        ui,
-        Rect::from_min_size(pos2(field_x, button_y), vec2(field_w, button_h)),
-        &mode,
-        visuals,
-        true,
-    )
-    .clicked()
-    {
-        state.settings.world_type = (state.settings.world_type + 1) % 4;
-    }
-    let difficulty = ["Peaceful", "Easy", "Normal", "Hard"][state.settings.difficulty as usize % 4];
-    if widgets::button(
-        ui,
-        Rect::from_min_size(
-            pos2(field_x, button_y + button_step),
-            vec2(field_w, button_h),
-        ),
-        &format!("Difficulty: {difficulty}"),
-        visuals,
-        true,
-    )
-    .clicked()
-    {
-        state.settings.difficulty = (state.settings.difficulty + 1) % 4;
-    }
-    let commands = if state.settings.allow_cheats {
-        "ON"
+        let field_rect = Rect::from_min_size(
+            pos2(field_x, rect.min.y + rect.height() * 0.197),
+            vec2(field_w, rect.height() * 0.082),
+        );
+        widgets::text_field(ui, field_rect, &state.world_name, visuals);
+
+        let button_y = rect.min.y + rect.height() * 0.313;
+        let button_h = rect.height() * 0.078;
+        let button_step = rect.height() * 0.117;
+        let modes = ["Survival", "Creative", "Adventure", "Spectator"];
+        let mode = format!(
+            "Game Mode: {}",
+            modes[state.settings.world_type as usize % 4]
+        );
+        if widgets::button(
+            ui,
+            Rect::from_min_size(pos2(field_x, button_y), vec2(field_w, button_h)),
+            &mode,
+            visuals,
+            true,
+        )
+        .clicked()
+        {
+            state.settings.world_type = (state.settings.world_type + 1) % 4;
+        }
+        let difficulty =
+            ["Peaceful", "Easy", "Normal", "Hard"][state.settings.difficulty as usize % 4];
+        if widgets::button(
+            ui,
+            Rect::from_min_size(
+                pos2(field_x, button_y + button_step),
+                vec2(field_w, button_h),
+            ),
+            &format!("Difficulty: {difficulty}"),
+            visuals,
+            true,
+        )
+        .clicked()
+        {
+            state.settings.difficulty = (state.settings.difficulty + 1) % 4;
+        }
+        let commands = if state.settings.allow_cheats {
+            "ON"
+        } else {
+            "OFF"
+        };
+        if widgets::button(
+            ui,
+            Rect::from_min_size(
+                pos2(field_x, button_y + button_step * 2.0),
+                vec2(field_w, button_h),
+            ),
+            &format!("Allow Commands: {commands}"),
+            visuals,
+            true,
+        )
+        .clicked()
+        {
+            state.settings.allow_cheats = !state.settings.allow_cheats;
+        }
     } else {
-        "OFF"
-    };
-    if widgets::button(
-        ui,
-        Rect::from_min_size(
-            pos2(field_x, button_y + button_step * 2.0),
-            vec2(field_w, button_h),
-        ),
-        &format!("Allow Commands: {commands}"),
-        visuals,
-        true,
-    )
-    .clicked()
-    {
-        state.settings.allow_cheats = !state.settings.allow_cheats;
+        // More tab: Game Rules / Experiments / Data Packs.
+        let button_y = rect.min.y + rect.height() * 0.170;
+        let button_h = rect.height() * 0.078;
+        let button_step = rect.height() * 0.112;
+        for (i, label) in ["Game Rules", "Experiments", "Data Packs"]
+            .iter()
+            .enumerate()
+        {
+            widgets::button(
+                ui,
+                Rect::from_min_size(
+                    pos2(field_x, button_y + button_step * i as f32),
+                    vec2(field_w, button_h),
+                ),
+                label,
+                visuals,
+                true,
+            );
+        }
     }
 
     let sep_y = rect.min.y + rect.height() * 0.857;

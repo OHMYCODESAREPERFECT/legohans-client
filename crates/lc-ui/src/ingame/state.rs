@@ -221,6 +221,8 @@ pub struct MenuState {
     pub time: f32,
     /// Screen fade-in progress, 0..=1.
     pub transition: f32,
+    /// Selected world-creation tab: 0 = Game, 1 = World, 2 = More.
+    pub world_tab: u8,
     /// Selected language.
     pub selected_language: usize,
     /// Fake world name field.
@@ -254,6 +256,7 @@ impl MenuState {
             stack: Vec::new(),
             time: 0.0,
             transition: 0.0,
+            world_tab: 0,
             selected_language: 0,
             world_name: "New World".to_string(),
             seed: String::new(),
