@@ -169,17 +169,13 @@ fn main_menu(
     let logo_rect = centered(rect, logo_w, logo_h, logo_center_y - rect.min.y);
     draw_image(ui.painter(), &visuals.textures.logo, logo_rect);
 
-    let edition_y = logo_rect.max.y + visuals.px(9.0);
-    let edition_scale = (rect.width() / 1280.0).clamp(0.45, 1.0);
+    let edition_w = logo_w * 0.62;
+    let edition_h = edition_w * 64.0 / 512.0;
     let edition_rect = Rect::from_center_size(
-        pos2(rect.center().x, edition_y),
-        vec2(
-            visuals.edition.width * edition_scale,
-            visuals.edition.height * edition_scale,
-        ),
+        pos2(rect.center().x, logo_rect.max.y + visuals.px(16.0)),
+        vec2(edition_w, edition_h),
     );
-    let edition_image = Image::new(&visuals.edition.texture).fit_to_exact_size(edition_rect.size());
-    ui.put(edition_rect, edition_image);
+    draw_image(ui.painter(), &visuals.textures.edition, edition_rect);
 
     // Yellow bouncing phrase, rotated over the right side of the logo.
     let splash_center = pos2(
